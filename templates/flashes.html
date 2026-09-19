@@ -4,11 +4,11 @@
 		<i class="fa
 			{{if eq .Type "danger"}}
 				fa-exclamation-circle
-			{{else if eq .Type "warning"}}
+			{{else if eq .Type "错误"}}
 				fa-exclamation-triangle
-			{{else if eq .Type "success"}}
+			{{else if eq .Type "成功"}}
 				fa-check-circle
-			{{else if eq .Type "info"}}
+			{{else if eq .Type "信息"}}
 				fa-info-circle
 			{{end}}"></i>
 			{{.Message}}

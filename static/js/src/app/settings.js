@@ -41,19 +41,19 @@ $(document).ready(function () {
         
         //To avoid unmarshalling error in controllers/api/imap.go. It would fail gracefully, but with a generic error.
         if (imapSettings.host == ""){
-            errorFlash("No IMAP Host specified")
+            errorFlash(t("js.imap_no_host"))
             document.body.scrollTop = 0;
             document.documentElement.scrollTop = 0;
             return false
         }
         if (imapSettings.port == ""){
-            errorFlash("No IMAP Port specified")
+            errorFlash(t("js.imap_no_port"))
             document.body.scrollTop = 0;
             document.documentElement.scrollTop = 0;
             return false
         }
         if (isNaN(imapSettings.port) || imapSettings.port <1 || imapSettings.port > 65535  ){ 
-            errorFlash("Invalid IMAP Port")
+            errorFlash(t("js.imap_invalid_port"))
             document.body.scrollTop = 0;
             document.documentElement.scrollTop = 0;
             return false
@@ -64,9 +64,9 @@ $(document).ready(function () {
 
         api.IMAP.post(imapSettings).done(function (data) {
                 if (data.success == true) {
-                    successFlashFade("Successfully updated IMAP settings.", 2)
+                    successFlashFade(t("js.imap_saved"), 2)
                 } else {
-                    errorFlash("Unable to update IMAP settings.")
+                    errorFlash(t("js.imap_save_failed"))
                 }
             })
             .success(function (data){
@@ -96,19 +96,19 @@ $(document).ready(function () {
 
         //To avoid unmarshalling error in controllers/api/imap.go. It would fail gracefully, but with a generic error. 
         if (server.host == ""){
-            errorFlash("No IMAP Host specified")
+            errorFlash(t("js.imap_no_host"))
             document.body.scrollTop = 0;
             document.documentElement.scrollTop = 0;
             return false
         }
         if (server.port == ""){
-            errorFlash("No IMAP Port specified")
+            errorFlash(t("js.imap_no_port"))
             document.body.scrollTop = 0;
             document.documentElement.scrollTop = 0;
             return false
         }
         if (isNaN(server.port) || server.port <1 || server.port > 65535  ){
-            errorFlash("Invalid IMAP Port")
+            errorFlash(t("js.imap_invalid_port"))
             document.body.scrollTop = 0;
             document.documentElement.scrollTop = 0;
             return false
@@ -129,29 +129,29 @@ $(document).ready(function () {
         $('#lastlogin').attr("disabled", true);
         $('#imapfreq').attr("disabled", true);
         $("#validateimap").attr("disabled", true);  
-        $("#validateimap").html("<i class='fa fa-circle-o-notch fa-spin'></i> Testing...");
+        $("#validateimap").html("<i class='fa fa-circle-o-notch fa-spin'></i> " + t("common.testing"));
         
         api.IMAP.validate(server).done(function(data) {
             if (data.success == true) {
                 Swal.fire({
-                    title: "Success",
-                    html: "Logged into <b>" + escapeHtml($("#imaphost").val()) + "</b>",
+                    title: t("common.success"),
+                    html: t("js.imap_login_ok") + " <b>" + escapeHtml($("#imaphost").val()) + "</b>",
                     type: "success",
                 })
             } else {
                 Swal.fire({
-                    title: "Failed!",
-                    html: "Unable to login to <b>" + escapeHtml($("#imaphost").val()) + "</b>.",
+                    title: t("common.failed"),
+                    html: t("js.imap_login_fail") + " <b>" + escapeHtml($("#imaphost").val()) + "</b>.",
                     type: "error",
                     showCancelButton: true,
-                    cancelButtonText: "Close",
-                    confirmButtonText: "More Info",
+                    cancelButtonText: t("common.close"),
+                    confirmButtonText: t("common.more_info"),
                     confirmButtonColor: "#428bca",
                     allowOutsideClick: false,
                 }).then(function(result) {
                     if (result.value) {
                         Swal.fire({
-                            title: "Error:",
+                            title: t("common.error") + ":",
                             text: data.message,
                         })
                     }
@@ -161,8 +161,8 @@ $(document).ready(function () {
           })
           .fail(function() {
             Swal.fire({
-                title: "Failed!",
-                text: "An unecpected error occured.",
+                title: t("common.failed"),
+                text: t("js.error_generic"),
                 type: "error",
             })
           })

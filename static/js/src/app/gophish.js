@@ -54,6 +54,39 @@ function escapeHtml(text) {
 }
 window.escapeHtml = escapeHtml
 
+/** Translate a UI string key; falls back to the key if missing. */
+function t(key) {
+    if (window.GophishTranslations && window.GophishTranslations[key]) {
+        return window.GophishTranslations[key]
+    }
+    return key
+}
+window.t = t
+
+/** Translate API status strings for display. Keys stay English for matching. */
+function statusLabel(status) {
+    var map = {
+        "Email Sent": "js.status_email_sent",
+        "Emails Sent": "js.email_sent",
+        "Email Opened": "js.status_email_opened",
+        "Clicked Link": "js.status_clicked",
+        "Submitted Data": "js.status_submitted",
+        "Email Reported": "js.status_reported",
+        "Error": "js.status_error",
+        "Scheduled": "js.status_scheduled",
+        "In progress": "js.status_in_progress",
+        "Completed": "js.status_completed",
+        "Queued": "js.status_queued",
+        "Sending": "js.status_sending",
+        "Retrying": "js.status_retrying"
+    }
+    if (map[status]) {
+        return t(map[status])
+    }
+    return status
+}
+window.statusLabel = statusLabel
+
 function unescapeHtml(html) {
     return $("<div/>").html(html).text()
 }

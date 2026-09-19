@@ -40,7 +40,7 @@ type Config struct {
 }
 
 // Version contains the current gophish version
-var Version = ""
+var Version = "1.0"
 
 // ServerName is the server type that is returned in the transparency response.
 const ServerName = "gophish"

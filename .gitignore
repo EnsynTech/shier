@@ -29,3 +29,9 @@ gophish_admin.key
 *.exe
 gophish.db*
 gophish
+
+# Local / IDE
+.idea/
+.cursor/
+info.log
+*.log

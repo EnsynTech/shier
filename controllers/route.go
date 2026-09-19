@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"github.com/gophish/gophish/config"
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/controllers/api"
+	"github.com/gophish/gophish/i18n"
 	log "github.com/gophish/gophish/logger"
 	mid "github.com/gophish/gophish/middleware"
 	"github.com/gophish/gophish/middleware/ratelimit"
@@ -137,6 +139,7 @@ func (as *AdminServer) registerRoutes() {
 	router.HandleFunc("/users", mid.Use(as.UserManagement, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	router.HandleFunc("/webhooks", mid.Use(as.Webhooks, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	router.HandleFunc("/impersonate", mid.Use(as.Impersonate, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
+	router.HandleFunc("/lang", as.SetLanguage)
 	// Create the API routes
 	api := api.NewServer(
 		api.WithWorker(as.worker),
@@ -173,12 +176,14 @@ func (as *AdminServer) registerRoutes() {
 }
 
 type templateParams struct {
-	Title        string
-	Flashes      []interface{}
-	User         models.User
-	Token        string
-	Version      string
-	ModifySystem bool
+	Title             string
+	Flashes           []interface{}
+	User              models.User
+	Token             string
+	Version           string
+	ModifySystem      bool
+	Lang              string
+	TranslationsJSON  template.JS
 }
 
 // newTemplateParams returns the default template parameters for a user and
@@ -187,62 +192,94 @@ func newTemplateParams(r *http.Request) templateParams {
 	user := ctx.Get(r, "user").(models.User)
 	session := ctx.Get(r, "session").(*sessions.Session)
 	modifySystem, _ := user.HasPermission(models.PermissionModifySystem)
+	lang := i18n.FromRequest(r)
 	return templateParams{
-		Token:        csrf.Token(r),
-		User:         user,
-		ModifySystem: modifySystem,
-		Version:      config.Version,
-		Flashes:      session.Flashes(),
+		Token:            csrf.Token(r),
+		User:             user,
+		ModifySystem:     modifySystem,
+		Version:          config.Version,
+		Flashes:          session.Flashes(),
+		Lang:             lang,
+		TranslationsJSON: translationsJS(lang),
 	}
+}
+
+func translationsJS(lang string) template.JS {
+	b, err := json.Marshal(i18n.Catalog(lang))
+	if err != nil {
+		return template.JS("{}")
+	}
+	return template.JS(b)
+}
+
+// SetLanguage stores the UI language preference in a cookie and redirects back.
+func (as *AdminServer) SetLanguage(w http.ResponseWriter, r *http.Request) {
+	lang := i18n.Normalize(r.URL.Query().Get("lang"))
+	i18n.SetCookie(w, lang)
+	next := r.URL.Query().Get("next")
+	if next == "" {
+		if ref := r.Header.Get("Referer"); ref != "" {
+			if u, err := url.Parse(ref); err == nil && u.Path != "" {
+				next = u.Path
+				if u.RawQuery != "" {
+					next += "?" + u.RawQuery
+				}
+			}
+		}
+	}
+	if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		next = "/"
+	}
+	http.Redirect(w, r, next, http.StatusFound)
 }
 
 // Base handles the default path and template execution
 func (as *AdminServer) Base(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
-	params.Title = "Dashboard"
-	getTemplate(w, "dashboard").ExecuteTemplate(w, "base", params)
+	params.Title = i18n.T(params.Lang, "title.dashboard")
+	getTemplate(w, "dashboard", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // Campaigns handles the default path and template execution
 func (as *AdminServer) Campaigns(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
-	params.Title = "Campaigns"
-	getTemplate(w, "campaigns").ExecuteTemplate(w, "base", params)
+	params.Title = i18n.T(params.Lang, "title.campaigns")
+	getTemplate(w, "campaigns", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // CampaignID handles the default path and template execution
 func (as *AdminServer) CampaignID(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
-	params.Title = "Campaign Results"
-	getTemplate(w, "campaign_results").ExecuteTemplate(w, "base", params)
+	params.Title = i18n.T(params.Lang, "title.campaign_results")
+	getTemplate(w, "campaign_results", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // Templates handles the default path and template execution
 func (as *AdminServer) Templates(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
-	params.Title = "Email Templates"
-	getTemplate(w, "templates").ExecuteTemplate(w, "base", params)
+	params.Title = i18n.T(params.Lang, "title.templates")
+	getTemplate(w, "templates", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // Groups handles the default path and template execution
 func (as *AdminServer) Groups(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
-	params.Title = "Users & Groups"
-	getTemplate(w, "groups").ExecuteTemplate(w, "base", params)
+	params.Title = i18n.T(params.Lang, "title.groups")
+	getTemplate(w, "groups", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // LandingPages handles the default path and template execution
 func (as *AdminServer) LandingPages(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
-	params.Title = "Landing Pages"
-	getTemplate(w, "landing_pages").ExecuteTemplate(w, "base", params)
+	params.Title = i18n.T(params.Lang, "title.landing_pages")
+	getTemplate(w, "landing_pages", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // SendingProfiles handles the default path and template execution
 func (as *AdminServer) SendingProfiles(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
-	params.Title = "Sending Profiles"
-	getTemplate(w, "sending_profiles").ExecuteTemplate(w, "base", params)
+	params.Title = i18n.T(params.Lang, "title.sending_profiles")
+	getTemplate(w, "sending_profiles", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // Settings handles the changing of settings
@@ -250,18 +287,19 @@ func (as *AdminServer) Settings(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == "GET":
 		params := newTemplateParams(r)
-		params.Title = "Settings"
+		params.Title = i18n.T(params.Lang, "title.settings")
 		session := ctx.Get(r, "session").(*sessions.Session)
 		session.Save(r, w)
-		getTemplate(w, "settings").ExecuteTemplate(w, "base", params)
+		getTemplate(w, "settings", params.Lang).ExecuteTemplate(w, "base", params)
 	case r.Method == "POST":
 		u := ctx.Get(r, "user").(models.User)
 		currentPw := r.FormValue("current_password")
 		newPassword := r.FormValue("new_password")
 		confirmPassword := r.FormValue("confirm_new_password")
+		lang := i18n.FromRequest(r)
 		// Check the current password
 		err := auth.ValidatePassword(currentPw, u.Hash)
-		msg := models.Response{Success: true, Message: "Settings Updated Successfully"}
+		msg := models.Response{Success: true, Message: i18n.T(lang, "js.settings_updated")}
 		if err != nil {
 			msg.Message = err.Error()
 			msg.Success = false
@@ -290,8 +328,8 @@ func (as *AdminServer) Settings(w http.ResponseWriter, r *http.Request) {
 // and management of user accounts within Gophish.
 func (as *AdminServer) UserManagement(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
-	params.Title = "User Management"
-	getTemplate(w, "users").ExecuteTemplate(w, "base", params)
+	params.Title = i18n.T(params.Lang, "title.users")
+	getTemplate(w, "users", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 func (as *AdminServer) nextOrIndex(w http.ResponseWriter, r *http.Request) {
@@ -309,20 +347,22 @@ func (as *AdminServer) nextOrIndex(w http.ResponseWriter, r *http.Request) {
 func (as *AdminServer) handleInvalidLogin(w http.ResponseWriter, r *http.Request, message string) {
 	session := ctx.Get(r, "session").(*sessions.Session)
 	Flash(w, r, "danger", message)
+	lang := i18n.FromRequest(r)
 	params := struct {
-		User    models.User
-		Title   string
-		Flashes []interface{}
-		Token   string
-	}{Title: "Login", Token: csrf.Token(r)}
+		User             models.User
+		Title            string
+		Flashes          []interface{}
+		Token            string
+		Lang             string
+		TranslationsJSON template.JS
+	}{Title: i18n.T(lang, "title.login"), Token: csrf.Token(r), Lang: lang, TranslationsJSON: translationsJS(lang)}
 	params.Flashes = session.Flashes()
 	session.Save(r, w)
-	templates := template.New("template")
+	templates := template.New("template").Funcs(i18n.FuncMap(lang))
 	_, err := templates.ParseFiles("templates/login.html", "templates/flashes.html")
 	if err != nil {
 		log.Error(err)
 	}
-	// w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusUnauthorized)
 	template.Must(templates, err).ExecuteTemplate(w, "base", params)
 }
@@ -330,8 +370,8 @@ func (as *AdminServer) handleInvalidLogin(w http.ResponseWriter, r *http.Request
 // Webhooks is an admin-only handler that handles webhooks
 func (as *AdminServer) Webhooks(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
-	params.Title = "Webhooks"
-	getTemplate(w, "webhooks").ExecuteTemplate(w, "base", params)
+	params.Title = i18n.T(params.Lang, "title.webhooks")
+	getTemplate(w, "webhooks", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // Impersonate allows an admin to login to a user account without needing the password
@@ -355,18 +395,21 @@ func (as *AdminServer) Impersonate(w http.ResponseWriter, r *http.Request) {
 // Login handles the authentication flow for a user. If credentials are valid,
 // a session is created
 func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
+	lang := i18n.FromRequest(r)
 	params := struct {
-		User    models.User
-		Title   string
-		Flashes []interface{}
-		Token   string
-	}{Title: "Login", Token: csrf.Token(r)}
+		User             models.User
+		Title            string
+		Flashes          []interface{}
+		Token            string
+		Lang             string
+		TranslationsJSON template.JS
+	}{Title: i18n.T(lang, "title.login"), Token: csrf.Token(r), Lang: lang, TranslationsJSON: translationsJS(lang)}
 	session := ctx.Get(r, "session").(*sessions.Session)
 	switch {
 	case r.Method == "GET":
 		params.Flashes = session.Flashes()
 		session.Save(r, w)
-		templates := template.New("template")
+		templates := template.New("template").Funcs(i18n.FuncMap(lang))
 		_, err := templates.ParseFiles("templates/login.html", "templates/flashes.html")
 		if err != nil {
 			log.Error(err)
@@ -378,18 +421,18 @@ func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
 		u, err := models.GetUserByUsername(username)
 		if err != nil {
 			log.Error(err)
-			as.handleInvalidLogin(w, r, "Invalid Username/Password")
+			as.handleInvalidLogin(w, r, i18n.T(lang, "login.invalid"))
 			return
 		}
 		// Validate the user's password
 		err = auth.ValidatePassword(password, u.Hash)
 		if err != nil {
 			log.Error(err)
-			as.handleInvalidLogin(w, r, "Invalid Username/Password")
+			as.handleInvalidLogin(w, r, i18n.T(lang, "login.invalid"))
 			return
 		}
 		if u.AccountLocked {
-			as.handleInvalidLogin(w, r, "Account Locked")
+			as.handleInvalidLogin(w, r, i18n.T(lang, "login.locked"))
 			return
 		}
 		u.LastLogin = time.Now().UTC()
@@ -408,7 +451,7 @@ func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
 func (as *AdminServer) Logout(w http.ResponseWriter, r *http.Request) {
 	session := ctx.Get(r, "session").(*sessions.Session)
 	delete(session.Values, "id")
-	Flash(w, r, "success", "You have successfully logged out")
+	Flash(w, r, "success", i18n.T(i18n.FromRequest(r), "login.logout_success"))
 	session.Save(r, w)
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
@@ -428,19 +471,20 @@ func (as *AdminServer) Logout(w http.ResponseWriter, r *http.Request) {
 func (as *AdminServer) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	u := ctx.Get(r, "user").(models.User)
 	session := ctx.Get(r, "session").(*sessions.Session)
+	lang := i18n.FromRequest(r)
 	if !u.PasswordChangeRequired {
-		Flash(w, r, "info", "Please reset your password through the settings page")
+		Flash(w, r, "info", i18n.T(lang, "reset.via_settings"))
 		session.Save(r, w)
 		http.Redirect(w, r, "/settings", http.StatusTemporaryRedirect)
 		return
 	}
 	params := newTemplateParams(r)
-	params.Title = "Reset Password"
+	params.Title = i18n.T(params.Lang, "title.reset_password")
 	switch {
 	case r.Method == http.MethodGet:
 		params.Flashes = session.Flashes()
 		session.Save(r, w)
-		getTemplate(w, "reset_password").ExecuteTemplate(w, "base", params)
+		getTemplate(w, "reset_password", params.Lang).ExecuteTemplate(w, "base", params)
 		return
 	case r.Method == http.MethodPost:
 		newPassword := r.FormValue("password")
@@ -451,7 +495,7 @@ func (as *AdminServer) ResetPassword(w http.ResponseWriter, r *http.Request) {
 			params.Flashes = session.Flashes()
 			session.Save(r, w)
 			w.WriteHeader(http.StatusBadRequest)
-			getTemplate(w, "reset_password").ExecuteTemplate(w, "base", params)
+			getTemplate(w, "reset_password", params.Lang).ExecuteTemplate(w, "base", params)
 			return
 		}
 		u.PasswordChangeRequired = false
@@ -461,7 +505,7 @@ func (as *AdminServer) ResetPassword(w http.ResponseWriter, r *http.Request) {
 			params.Flashes = session.Flashes()
 			session.Save(r, w)
 			w.WriteHeader(http.StatusInternalServerError)
-			getTemplate(w, "reset_password").ExecuteTemplate(w, "base", params)
+			getTemplate(w, "reset_password", params.Lang).ExecuteTemplate(w, "base", params)
 			return
 		}
 		// TODO: We probably want to flash a message here that the password was
@@ -476,8 +520,8 @@ func (as *AdminServer) ResetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // TODO: Make this execute the template, too
-func getTemplate(w http.ResponseWriter, tmpl string) *template.Template {
-	templates := template.New("template")
+func getTemplate(w http.ResponseWriter, tmpl string, lang string) *template.Template {
+	templates := template.New("template").Funcs(i18n.FuncMap(lang))
 	_, err := templates.ParseFiles("templates/base.html", "templates/nav.html", "templates/"+tmpl+".html", "templates/flashes.html")
 	if err != nil {
 		log.Error(err)

@@ -14,12 +14,12 @@ var campaign = {}
 // Launch attempts to POST to /campaigns/
 function launch() {
     Swal.fire({
-        title: "Are you sure?",
-        text: "This will schedule the campaign to be launched.",
+        title: t("js.confirm_launch"),
+        text: t("js.confirm_launch_text"),
         type: "question",
         animation: false,
         showCancelButton: true,
-        confirmButtonText: "Launch",
+        confirmButtonText: t("js.launch"),
         confirmButtonColor: "#428bca",
         reverseButtons: true,
         allowOutsideClick: false,
@@ -127,7 +127,7 @@ function dismiss() {
 
 function deleteCampaign(idx) {
     Swal.fire({
-        title: "Are you sure?",
+        title: t("js.confirm_delete"),
         text: "This will delete the campaign. This can't be undone!",
         type: "warning",
         animation: false,

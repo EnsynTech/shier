@@ -51,8 +51,8 @@ function dismiss() {
 
 var deletePage = function (idx) {
     Swal.fire({
-        title: "Are you sure?",
-        text: "This will delete the landing page. This can't be undone!",
+        title: t("js.confirm_delete"),
+        text: t("js.confirm_delete_page"),
         type: "warning",
         animation: false,
         showCancelButton: true,
@@ -125,7 +125,7 @@ function edit(idx) {
             $("#redirect_url").show()
         }
     } else {
-        $("#modalLabel").text("New Landing Page")
+        $("#modalLabel").text("新建钓鱼页面")
     }
 }
 

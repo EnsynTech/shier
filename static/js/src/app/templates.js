@@ -81,8 +81,8 @@ function dismiss() {
 
 var deleteTemplate = function (idx) {
     Swal.fire({
-        title: "Are you sure?",
-        text: "This will delete the template. This can't be undone!",
+        title: t("js.confirm_delete"),
+        text: t("js.confirm_delete_template"),
         type: "warning",
         animation: false,
         showCancelButton: true,

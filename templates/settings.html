@@ -1,18 +1,17 @@
 {{define "body"}}
 <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
     <div class="row">
-        <h1 class="page-header">Settings</h1>
+        <h1 class="page-header">{{ T "settings.title" }}</h1>
     </div>
     <div id="flashes" class="row"></div>
     {{template "flashes" .Flashes}}
     <!-- Nav tabs -->
     <ul class="nav nav-tabs" role="tablist">
         <li class="active" role="mainSettings"><a href="#mainSettings" aria-controls="mainSettings" role="tab"
-                data-toggle="tab">Account Settings</a></li>
-        <li role="uiSettings"><a href="#uiSettings" aria-controls="uiSettings" role="tab" data-toggle="tab">UI
-                Settings</a></li>
+                data-toggle="tab">{{ T "settings.account" }}</a></li>
+        <li role="uiSettings"><a href="#uiSettings" aria-controls="uiSettings" role="tab" data-toggle="tab">{{ T "settings.ui" }}</a></li>
         <li role="reportingSettings"><a href="#reportingSettings" aria-controls="reportingSettings" role="tab" id="reporttab"
-            data-toggle="tab">Reporting Settings</a></li>
+            data-toggle="tab">{{ T "settings.reporting" }}</a></li>
     </ul>
     <!-- Tab Panes -->
     <div class="tab-content">
@@ -20,7 +19,7 @@
             <br />
             {{if .ModifySystem }}
             <div class="row">
-                <label class="col-sm-2 control-label form-label">Gophish version</label>
+                <label class="col-sm-2 control-label form-label">{{ T "settings.version" }}</label>
                 <div class="col-md-6">
                     <label class="form-label">{{.Version}}</label>
                 </div>
@@ -28,20 +27,20 @@
             <br />
             {{end}}
             <div class="row">
-                <label for="api_key" class="col-sm-2 control-label form-label">API Key:</label>
+                <label for="api_key" class="col-sm-2 control-label form-label">{{ T "settings.api_key" }}</label>
                 <div class="col-md-6">
                     <input type="text" id="api_key" onclick="this.select();" value="{{.User.ApiKey}}"
                         class="form-control" readonly />
                 </div>
                 <form id="apiResetForm">
-                    <button class="btn btn-primary"><i class="fa fa-refresh" type="submit"></i> Reset</button>
+                    <button class="btn btn-primary"><i class="fa fa-refresh" type="submit"></i> {{ T "settings.reset" }}</button>
                     <input type="hidden" name="csrf_token" value="{{.Token}}" />
                 </form>
             </div>
             <br />
             <form id="settingsForm">
                 <div class="row">
-                    <label for="username" class="col-sm-2 control-label form-label">Username:</label>
+                    <label for="username" class="col-sm-2 control-label form-label">{{ T "settings.username" }}</label>
                     <div class="col-md-6">
                         <input type="text" id="username" name="username" value="{{.User.Username}}"
                             class="form-control" />
@@ -49,7 +48,7 @@
                 </div>
                 <br />
                 <div class="row">
-                    <label for="current_password" class="col-sm-2 control-label form-label">Old Password:</label>
+                    <label for="current_password" class="col-sm-2 control-label form-label">{{ T "settings.current_password" }}</label>
                     <div class="col-md-6">
                         <input type="password" id="current_password" name="current_password" autocomplete="off"
                             class="form-control" />
@@ -57,7 +56,7 @@
                 </div>
                 <br />
                 <div class="row">
-                    <label for="new_password" class="col-sm-2 control-label form-label">New Password:</label>
+                    <label for="new_password" class="col-sm-2 control-label form-label">{{ T "settings.new_password" }}</label>
                     <div class="col-md-6">
                         <input type="password" id="password" name="new_password" autocomplete="new-password"
                             class="form-control" />
@@ -72,8 +71,7 @@
                 </div>
                 <br />
                 <div class="row">
-                    <label for="confirm_new_password" class="col-sm-2 control-label form-label">Confirm New
-                        Password:</label>
+                    <label for="confirm_new_password" class="col-sm-2 control-label form-label">{{ T "settings.confirm_password" }}</label>
                     <div class="col-md-6">
                         <input type="password" id="confirm_new_password" name="confirm_new_password" autocomplete="off"
                             class="form-control" />
@@ -81,7 +79,7 @@
                 </div>
                 <input type="hidden" name="csrf_token" value="{{.Token}}" />
                 <br />
-                <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> Save</button>
+                <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> {{ T "settings.save" }}</button>
             </form>
             <br />
         </div>
@@ -89,7 +87,7 @@
             <br />
             <div class="checkbox checkbox-primary">
                 <input id="use_map" type="checkbox">
-                <label for="use_map">Show campaign results map</label>
+                <label for="use_map">{{ T "settings.show_map" }}</label>
             </div>
         </div>
         <!-- Reporting Settings Begin -->
@@ -98,7 +96,7 @@
             <br />
             <div class="row">
                 <div class="col-md-6">
-                    Monitor an IMAP account for emails reported by users.
+                    {{ T "settings.imap_intro" }}
                 </div>
              </div>
             <br />
@@ -107,7 +105,7 @@
                 <div class="col-md-6">
                 <div class="checkbox checkbox-primary">
                     <input id="use_imap" type="checkbox">
-                    <label for="use_imap">Enable Email Account Monitoring</label>
+                    <label for="use_imap">{{ T "settings.imap_enable" }}</label>
                 </div>
                 </div>
              </div>
@@ -135,7 +133,7 @@
             <div class="row">
                 <label for="imapusername" class="col-sm-2 control-label form-label">IMAP Username:</label>
                 <div class="col-md-6">
-                    <input type="text" id="imapusername" name="imapusername" placeholder="Username"
+                    <input type="text" id="imapusername" name="imapusername" placeholder="{{ T "common.username" }}"
                         class="form-control" />
                 </div>
             </div>
@@ -144,7 +142,7 @@
             <div class="row">
                 <label for="imappassword" class="col-sm-2 control-label form-label">IMAP Password:</label>
                 <div class="col-md-6">
-                    <input type="password" id="imappassword" name="imappassword" placeholder="Password" autocomplete="off"
+                    <input type="password" id="imappassword" name="imappassword" placeholder="{{ T "common.password" }}" autocomplete="off"
                         class="form-control" />
                 </div>
             </div>
@@ -166,7 +164,7 @@
             <div id="advancedarea" style="display: none;">
                 <hr>
                 <div class="row">
-                <label for="folder" class="col-sm-2 control-label form-label">Folder:</label>
+                <label for="folder" class="col-sm-2 control-label form-label">{{ T "settings.folder" }}</label>
                     <div class="col-md-6">
                         <input type="text" id="folder" name="folder" placeholder="Leave blank for default of INBOX."
                             class="form-control" />
@@ -175,7 +173,7 @@
                 <br />
 
                 <div class="row">
-                    <label for="folder" class="col-sm-2 control-label form-label" data-toggle="tooltip" title="How often to check for new emails. 30 seconds minimum.">Polling frequency:</label>
+                    <label for="folder" class="col-sm-2 control-label form-label" data-toggle="tooltip" title="How often to check for new emails. 30 seconds minimum.">{{ T "settings.polling" }}</label>
                         <div class="col-md-6">
                             <input type="number" id="imapfreq" name="imapfreq" placeholder="Leave blank for default of every 60 seconds."
                                 class="form-control" />
@@ -184,7 +182,7 @@
                     <br />
         
                 <div class="row">
-                    <label for="restrictdomain" class="col-sm-2 control-label form-label" data-toggle="tooltip" title="Only check emails reported from the supplied domain.">Restrict to domain:</label>
+                    <label for="restrictdomain" class="col-sm-2 control-label form-label" data-toggle="tooltip" title="Only check emails reported from the supplied domain.">{{ T "settings.restrict_domain" }}</label>
                     <div class="col-md-6">
                         <input type="text" id="restrictdomain" name="restrictdomain" placeholder="e.g. widgets.com. Leave blank for all domains."
                             class="form-control" />
@@ -193,7 +191,7 @@
                 <br />
 
                 <div class="row">
-                    <label for="ignorecerterrors" class="col-sm-2 control-label form-label" data-toggle="tooltip" title="Ignore common certificate errors such as self-signed certs (exposes you to MiTM attacks - use carefully!)">Ignore Certificate Errors:</label>
+                    <label for="ignorecerterrors" class="col-sm-2 control-label form-label" data-toggle="tooltip" title="Ignore common certificate errors such as self-signed certs (exposes you to MiTM attacks - use carefully!)">{{ T "settings.ignore_cert" }}</label>
                     <div class="col-md-6">
                         <div class="checkbox checkbox-primary">
                             <input id="ignorecerterrors" type="checkbox">
@@ -204,7 +202,7 @@
                 <br />
 
                 <div class="row">
-                    <label for="deletecampaign" class="col-sm-2 control-label form-label" data-toggle="tooltip" title="Delete campaign emails after they've been reported.">Delete campaigns emails:</label>
+                    <label for="deletecampaign" class="col-sm-2 control-label form-label" data-toggle="tooltip" title="Delete campaign emails after they've been reported.">{{ T "settings.delete_emails" }}</label>
                     <div class="col-md-6">
                         <div class="checkbox checkbox-primary">
                             <input id="deletecampaign" type="checkbox">
@@ -216,9 +214,9 @@
                 <br />
         
                 <div class="row" id="lastlogindiv">
-                <label for="lastlogin" class="col-sm-2 control-label form-label">Last succesful login:</label>
+                <label for="lastlogin" class="col-sm-2 control-label form-label">{{ T "settings.last_login" }}</label>
                 <div class="col-md-6">
-                    <input type="text" id="lastlogin" name="lastlogin" placeholder="Checking..." disabled
+                    <input type="text" id="lastlogin" name="lastlogin" placeholder="{{ T "settings.checking" }}" disabled
                         class="form-control border-0" />
                     </div>
                 </div>
@@ -230,12 +228,12 @@
             <div class="row">
                 <label for="advancedsettings" class="col-sm-2 control-label form-label"></label>
                 <div class="col-md-6 text-right">
-                    <button class="btn-xs btn-link" id="advanced" type="button">Advanced Settings</button>
+                    <button class="btn-xs btn-link" id="advanced" type="button">{{ T "settings.advanced" }}</button>
                 </div>
             </div>
 
-            <button class="btn btn-primary" id ="savesettings" type="button"><i class="fa fa-save"></i> Save</button>
-            <button class="btn btn-primary" id="validateimap" type="button"><i class="fa fa-wrench"></i> Test Settings</button>
+            <button class="btn btn-primary" id ="savesettings" type="button"><i class="fa fa-save"></i> {{ T "settings.save" }}</button>
+            <button class="btn btn-primary" id="validateimap" type="button"><i class="fa fa-wrench"></i> {{ T "settings.test" }}</button>
 
 
         </form>

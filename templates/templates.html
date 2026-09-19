@@ -2,13 +2,13 @@
 <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
     <div class="row">
         <h1 class="page-header">
-            Email Templates
+            {{ T "title.templates" }}
         </h1>
     </div>
     <div id="flashes" class="row"></div>
     <div class="row">
         <button type="button" class="btn btn-primary" onclick="edit(-1)" data-toggle="modal" data-backdrop="static"
-            data-target="#modal"><i class="fa fa-plus"></i> New Template</button>
+            data-target="#modal"><i class="fa fa-plus"></i> {{ T "templates.new" }}</button>
     </div>
     &nbsp;
     <div id="loading">
@@ -16,15 +16,15 @@
     </div>
     <div id="emptyMessage" class="row" style="display:none;">
         <div class="alert alert-info">
-            No templates yet. Let's create one!
+            {{ T "templates.empty" }}
         </div>
     </div>
     <div class="row">
         <table id="templateTable" class="table" style="display:none;">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Modified Date</th>
+                    <th>{{ T "common.name" }}</th>
+                    <th>{{ T "common.modified" }}</th>
                     <th class="col-md-2 no-sort"></th>
                 </tr>
             </thead>
@@ -37,38 +37,35 @@
 <div class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="modalLabel">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
-            <!-- New Template Modal -->
             <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="dismiss()"><span
+                <button type="button" class="close" data-dismiss="modal" aria-label="{{ T "common.close" }}" onclick="dismiss()"><span
                         aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="templateModalLabel">New Template</h4>
+                <h4 class="modal-title" id="templateModalLabel">{{ T "templates.new" }}</h4>
             </div>
             <div class="modal-body">
                 <div class="row" id="modal.flashes"></div>
-                <label class="control-label" for="name">Name:</label>
+                <label class="control-label" for="name">{{ T "campaigns.name" }}</label>
                 <div class="form-group">
-                    <input type="text" class="form-control" ng-model="template.name" placeholder="Template name" id="name"
+                    <input type="text" class="form-control" ng-model="template.name" placeholder="{{ T "common.name" }}" id="name"
                         autofocus />
                 </div>
                 <div class="form-group">
                     <button class="btn btn-danger" data-toggle="modal" data-backdrop="static" data-target="#importEmailModal"><i
                             class="fa fa-envelope"></i>
-                        Import Email</button>
+                        {{ T "templates.import_email" }}</button>
                 </div>
-                <label class="control-label" for="envelope-sender">Envelope Sender: <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="This sender is shown to the user by most email clients. Defaults to the SMTP From as defined in the Sending Profile."></i></label>
+                <label class="control-label" for="envelope-sender">{{ T "templates.envelope_sender" }} <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="{{ T "templates.envelope_help" }}"></i></label>
                 <div class="form-group">
                     <input type="text" class="form-control" placeholder="First Last <test@example.com>" id="envelope-sender" />
                 </div>
-                <label class="control-label" for="subject">Subject:</label>
+                <label class="control-label" for="subject">{{ T "templates.subject" }}</label>
                 <div class="form-group">
                     <input type="text" class="form-control" placeholder="Email Subject" id="subject" />
                 </div>
-                <!-- Nav tabs -->
                 <ul class="nav nav-tabs" role="tablist">
-                    <li class="active" role="text"><a href="#text" aria-controls="text" role="tab" data-toggle="tab">Text</a></li>
-                    <li role="html"><a href="#html" aria-controls="html" role="tab" data-toggle="tab">HTML</a></li>
+                    <li class="active" role="text"><a href="#text" aria-controls="text" role="tab" data-toggle="tab">{{ T "templates.text" }}</a></li>
+                    <li role="html"><a href="#html" aria-controls="html" role="tab" data-toggle="tab">{{ T "templates.html" }}</a></li>
                 </ul>
-                <!-- Tab panes -->
                 <div class="tab-content">
                     <div role="tabpanel" class="tab-pane active" id="text">
                         <textarea rows="10" id="text_editor" class="gophish-editor form-control" placeholder="Plaintext"></textarea>
@@ -79,9 +76,9 @@
                 </div>
                 <div class="checkbox checkbox-primary">
                     <input id="use_tracker_checkbox" type="checkbox" checked>
-                    <label for="use_tracker_checkbox">Add Tracking Image</label>
+                    <label for="use_tracker_checkbox">{{ T "templates.tracking_image" }}</label>
                 </div>
-                <span class="btn btn-danger btn-file"><i class="fa fa-plus"></i> Add Files
+                <span class="btn btn-danger btn-file"><i class="fa fa-plus"></i> {{ T "templates.add_attachment" }}
                     <input id="attachmentUpload" type="file" onchange="attach(this.files)" multiple>
                 </span>
                 <br />
@@ -90,10 +87,10 @@
                     <thead>
                         <tr>
                             <th class="col-md-1 no-sort"></th>
-                            <th class="col-md-10">Name</th>
+                            <th class="col-md-10">{{ T "common.name" }}</th>
                             <th class="col-md-1 no-sort"></th>
-                            <th class="datatable_hidden no-sort">Content</th>
-                            <th class="datatable_hidden no-sort">Type</th>
+                            <th class="datatable_hidden no-sort">{{ T "templates.body" }}</th>
+                            <th class="datatable_hidden no-sort">{{ T "templates.type" }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -102,35 +99,33 @@
                 <hr>
             </div>
             <div class="modal-footer">
-                <button type="button" data-dismiss="modal" class="btn btn-default" onclick="dismiss()">Cancel</button>
-                <button type="button" class="btn btn-primary" id="modalSubmit">Save Template</button>
+                <button type="button" data-dismiss="modal" class="btn btn-default" onclick="dismiss()">{{ T "templates.dismiss" }}</button>
+                <button type="button" class="btn btn-primary" id="modalSubmit">{{ T "templates.save" }}</button>
             </div>
         </div>
     </div>
 </div>
-<!-- Modal -->
 <div class="modal fade" id="importEmailModal" tabindex="-1" role="dialog" aria-labelledby="modalLabel">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
-            <!-- New Email Modal -->
             <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="importEmailModalLabel">Import Email</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="{{ T "common.close" }}"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="importEmailModalLabel">{{ T "templates.import_email_title" }}</h4>
             </div>
             <div class="modal-body">
                 <div class="row" id="modal.flashes"></div>
-                <label class="control-label" for="email">Email Content:</label>
+                <label class="control-label" for="email">{{ T "templates.email_content" }}</label>
                 <div class="form-group">
                     <textarea rows="10" id="email_content" class="gophish-editor form-control" placeholder="Raw Email Source"></textarea>
                 </div>
                 <div class="checkbox checkbox-primary">
                     <input id="convert_links_checkbox" type="checkbox" checked>
-                    <label for="convert_links_checkbox">Change Links to Point to Landing Page</label>
+                    <label for="convert_links_checkbox">{{ T "templates.convert_links" }}</label>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
-                <button type="button" class="btn btn-primary" id="modalSubmit" onclick="importEmail()">Import</button>
+                <button type="button" data-dismiss="modal" class="btn btn-default">{{ T "templates.dismiss" }}</button>
+                <button type="button" class="btn btn-primary" id="modalSubmit" onclick="importEmail()">{{ T "templates.import" }}</button>
             </div>
         </div>
     </div>

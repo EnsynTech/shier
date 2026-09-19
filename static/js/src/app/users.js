@@ -98,12 +98,12 @@ const deleteUser = (id) => {
         return
     }
     Swal.fire({
-        title: "Are you sure?",
+        title: t("js.confirm_delete"),
         text: "This will delete the account for " + escapeHtml(user.username) + " as well as all of the objects they have created.\n\nThis can't be undone!",
         type: "warning",
         animation: false,
         showCancelButton: true,
-        confirmButtonText: "Delete",
+        confirmButtonText: t("js.delete"),
         confirmButtonColor: "#428bca",
         reverseButtons: true,
         allowOutsideClick: false,
@@ -141,7 +141,7 @@ const impersonate = (id) => {
         return
     }
     Swal.fire({
-        title: "Are you sure?",
+        title: t("js.confirm_delete"),
         html: "You will be logged out of your account and logged in as <strong>" + escapeHtml(user.username) + "</strong>",
         type: "warning",
         animation: false,
