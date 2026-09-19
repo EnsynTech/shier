@@ -13,6 +13,8 @@
 .navbar-logo {
     margin: 4px 0px;
     float: left;
+    height: 32px;
+    width: auto;
 }
 
 #navbar-login {
@@ -101,6 +103,8 @@ ul .dropdown-menu .ng-isolate-scope {
     display: block;
     margin-left: auto;
     margin-right: auto;
+    max-width: 280px;
+    height: auto;
 }
 
 footer>p {
