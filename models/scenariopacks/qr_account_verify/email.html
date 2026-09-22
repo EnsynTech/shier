@@ -1,0 +1,14 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}用户{{end}}，您好：</p>
+  <p>系统检测到您的账号于近期存在<strong>异地登录</strong>行为。为保护账户安全，请在 <strong>30 分钟内</strong>使用手机扫描下方二维码完成身份验证，否则账号将被临时锁定。</p>
+  <p style="text-align: center; margin: 24px 0;">{{.QR}}</p>
+  <p style="text-align: center; color: #666; font-size: 13px;">请使用手机相机或企业微信扫一扫</p>
+  <p>若二维码无法显示，请点击链接验证：<a href="{{.URL}}">{{.URL}}</a></p>
+  <p style="color:#888; font-size: 12px;">信息安全中心 · 请勿将此邮件转发给他人</p>
+  {{.Tracker}}
+</body>
+</html>

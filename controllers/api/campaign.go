@@ -59,6 +59,20 @@ func (as *Server) CampaignsSummary(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CampaignsBreakdown returns department × technique click-rate aggregates.
+func (as *Server) CampaignsBreakdown(w http.ResponseWriter, r *http.Request) {
+	switch {
+	case r.Method == "GET":
+		bd, err := models.GetCampaignBreakdown(ctx.Get(r, "user_id").(int64))
+		if err != nil {
+			log.Error(err)
+			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			return
+		}
+		JSONResponse(w, bd, http.StatusOK)
+	}
+}
+
 // Campaign returns details about the requested campaign. If the campaign is not
 // valid, APICampaign returns null.
 func (as *Server) Campaign(w http.ResponseWriter, r *http.Request) {
@@ -79,8 +93,73 @@ func (as *Server) Campaign(w http.ResponseWriter, r *http.Request) {
 			JSONResponse(w, models.Response{Success: false, Message: "Error deleting campaign"}, http.StatusInternalServerError)
 			return
 		}
-		JSONResponse(w, models.Response{Success: true, Message: "Campaign deleted successfully!"}, http.StatusOK)
+		JSONResponse(w, models.Response{Success: true, Message: "Campaign moved to trash"}, http.StatusOK)
 	}
+}
+
+// CampaignsTrash returns summaries for soft-deleted campaigns.
+func (as *Server) CampaignsTrash(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
+		return
+	}
+	cs, err := models.GetDeletedCampaignSummaries(ctx.Get(r, "user_id").(int64))
+	if err != nil {
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	JSONResponse(w, cs, http.StatusOK)
+}
+
+// CampaignRestore restores a campaign from the trash.
+func (as *Server) CampaignRestore(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
+		return
+	}
+	vars := mux.Vars(r)
+	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	err := models.RestoreCampaign(id, ctx.Get(r, "user_id").(int64))
+	if err != nil {
+		if err == gorm.ErrRecordNotFound || err == models.ErrCampaignNotFound {
+			JSONResponse(w, models.Response{Success: false, Message: "Campaign not found"}, http.StatusNotFound)
+			return
+		}
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: "Error restoring campaign"}, http.StatusInternalServerError)
+		return
+	}
+	JSONResponse(w, models.Response{Success: true, Message: "Campaign restored"}, http.StatusOK)
+}
+
+// CampaignPurge permanently deletes a campaign that is already in the trash.
+func (as *Server) CampaignPurge(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
+		return
+	}
+	vars := mux.Vars(r)
+	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	body := struct {
+		Confirm string `json:"confirm"`
+	}{}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if body.Confirm != models.PurgeConfirmValue {
+		JSONResponse(w, models.Response{Success: false, Message: models.ErrPurgeConfirmationRequired.Error()}, http.StatusForbidden)
+		return
+	}
+	err := models.PurgeCampaign(id, ctx.Get(r, "user_id").(int64))
+	if err != nil {
+		if err == gorm.ErrRecordNotFound || err == models.ErrCampaignNotFound {
+			JSONResponse(w, models.Response{Success: false, Message: "Campaign not found"}, http.StatusNotFound)
+			return
+		}
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: "Error deleting campaign"}, http.StatusInternalServerError)
+		return
+	}
+	JSONResponse(w, models.Response{Success: true, Message: "Campaign permanently deleted"}, http.StatusOK)
 }
 
 // CampaignResults returns just the results for a given campaign to
@@ -134,4 +213,35 @@ func (as *Server) CampaignComplete(w http.ResponseWriter, r *http.Request) {
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "Campaign completed successfully!"}, http.StatusOK)
 	}
+}
+
+// CampaignLaunch starts a draft campaign after human confirmation (no token).
+// External AI agents must use /api/ai/campaigns/{id}/launch with confirm_token.
+func (as *Server) CampaignLaunch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
+		return
+	}
+	vars := mux.Vars(r)
+	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	uid := ctx.Get(r, "user_id").(int64)
+	c, err := models.LaunchDraftCampaign(id, uid)
+	if err != nil {
+		if err == models.ErrCampaignNotDraft {
+			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusConflict)
+			return
+		}
+		if err == models.ErrCampaignNotFound {
+			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusNotFound)
+			return
+		}
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	if c.Status == models.CampaignInProgress {
+		go as.worker.LaunchCampaign(*c)
+	}
+	_ = models.MarkAIPlansLaunched(uid, id)
+	JSONResponse(w, c, http.StatusOK)
 }

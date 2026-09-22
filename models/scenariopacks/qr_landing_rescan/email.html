@@ -1,0 +1,11 @@
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; color:#222; line-height:1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}用户{{end}}，您好：</p>
+  <p>检测到需要二次确认。请先打开链接进入确认页，再用手机扫描页面上的二维码。</p>
+  <p style="text-align:center;margin:24px 0;">{{.QR}}</p>
+  <p style="text-align:center;"><a href="{{.URL}}">打开确认页</a></p>
+  <p style="color:#888;font-size:12px;">信息安全中心</p>
+  {{.Tracker}}
+</body>
+</html>

@@ -1,0 +1,107 @@
+{{define "body"}}
+<div class="container-fluid shier-main main">
+    <h1 class="page-header">
+        {{ T "title.sending_channels" }}
+    </h1>
+    <div id="flashes" class="row"></div>
+    <div class="row">
+        <button type="button" class="btn btn-primary" onclick="edit(-1)" data-toggle="modal" data-backdrop="static"
+            data-target="#modal"><i class="fa fa-plus"></i> {{ T "channels.new" }}</button>
+    </div>
+    &nbsp;
+    <div id="loading">
+        <i class="fa fa-spinner fa-spin fa-4x"></i>
+    </div>
+    <div id="emptyMessage" class="row" style="display:none;">
+        <div class="alert alert-info">
+            {{ T "channels.empty" }}
+        </div>
+    </div>
+    <div class="row">
+        <table id="channelTable" class="table" style="display:none;">
+            <thead>
+                <tr>
+                    <th class="col-md-3">{{ T "common.name" }}</th>
+                    <th>{{ T "channels.type" }}</th>
+                    <th>{{ T "channels.endpoint" }}</th>
+                    <th>{{ T "common.modified" }}</th>
+                    <th class="col-md-2 no-sort"></th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="modalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="{{ T "common.close" }}" onclick="dismiss()"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="channelModalLabel">{{ T "channels.modal_title" }}</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="modal.flashes"></div>
+                <form>
+                    <div class="form-group">
+                        <label class="control-label" for="name">{{ T "common.name" }}</label>
+                        <input type="text" class="form-control" id="name" autofocus />
+                        <label class="control-label" for="channel">{{ T "channels.type" }}</label>
+                        <select class="form-control" id="channel">
+                            <option value="sms">{{ T "channels.type_sms" }}</option>
+                            <option value="im">{{ T "channels.type_im" }}</option>
+                        </select>
+                        <label class="control-label" for="endpoint_url">{{ T "channels.endpoint" }}</label>
+                        <input type="text" class="form-control" id="endpoint_url" placeholder="https://gateway.example.com/send" />
+                        <label class="control-label" for="http_method">{{ T "channels.http_method" }}</label>
+                        <select class="form-control" id="http_method">
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="PATCH">PATCH</option>
+                        </select>
+                        <label class="control-label" for="content_type">{{ T "channels.content_type" }}</label>
+                        <input type="text" class="form-control" id="content_type" value="application/json" />
+                        <label class="control-label" for="auth_header_name">{{ T "channels.auth_header_name" }}</label>
+                        <input type="text" class="form-control" id="auth_header_name" placeholder="Authorization" />
+                        <label class="control-label" for="auth_header_value">{{ T "channels.auth_header_value" }}</label>
+                        <input type="password" class="form-control" id="auth_header_value" placeholder="Bearer token / API key" autocomplete="new-password" />
+                        <label class="control-label" for="success_status_codes">{{ T "channels.success_codes" }}</label>
+                        <input type="text" class="form-control" id="success_status_codes" value="200,201,204" />
+                        <label class="control-label" for="body_template">{{ T "channels.body_template" }}</label>
+                        <textarea class="form-control" id="body_template" rows="8"></textarea>
+                        <p class="help-block">{{ T "channels.body_template_help" }}</p>
+                        <div class="checkbox checkbox-primary">
+                            <input id="ignore_cert_errors" type="checkbox">
+                            <label for="ignore_cert_errors">{{ T "channels.ignore_cert" }}</label>
+                        </div>
+                    </div>
+                    <hr>
+                    <h5>{{ T "channels.test_title" }}</h5>
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <input type="text" class="form-control" id="test_phone" placeholder="{{ T "channels.test_phone" }}">
+                        </div>
+                        <div class="col-sm-6">
+                            <input type="email" class="form-control" id="test_email" placeholder="{{ T "channels.test_email" }}">
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top:8px;">
+                        <div class="col-sm-12">
+                            <input type="text" class="form-control" id="test_message" placeholder="{{ T "channels.test_message" }}">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal" onclick="dismiss()">{{ T "common.cancel" }}</button>
+                <button type="button" class="btn btn-info" onclick="sendTest()"><i class="fa fa-paper-plane"></i> {{ T "channels.send_test" }}</button>
+                <button type="button" class="btn btn-primary" id="modalSubmit" onclick="save()"><i class="fa fa-save"></i> {{ T "common.save" }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+{{define "scripts"}}
+<script src="/js/dist/app/sending_channels.min.js"></script>
+{{end}}

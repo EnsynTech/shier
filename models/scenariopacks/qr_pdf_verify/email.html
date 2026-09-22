@@ -1,0 +1,10 @@
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; color:#222; line-height:1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}用户{{end}}，您好：</p>
+  <p>请打开附件 <strong>qrcode.pdf</strong>，使用手机扫描其中的二维码完成身份验证。中文说明见本邮件，PDF 内为二维码图示。</p>
+  <p>也可直接访问：<a href="{{.URL}}">{{.URL}}</a></p>
+  <p style="color:#888;font-size:12px;">信息安全中心</p>
+  {{.Tracker}}
+</body>
+</html>

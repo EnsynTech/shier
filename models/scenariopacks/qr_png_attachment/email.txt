@@ -1,0 +1,6 @@
+{{if .FirstName}}{{.FirstName}}{{else}}用户{{end}}，您好：
+
+请扫描附件 qrcode.png 完成验证。
+或访问：{{.URL}}
+
+信息安全中心

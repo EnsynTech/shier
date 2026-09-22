@@ -1,0 +1,445 @@
+/* 识饵 P0 design tokens and shell overrides */
+
+:root {
+  --ink: #101a16;
+  --paper: #f3f6f3;
+  --panel: #ffffff;
+  --text: #15201b;
+  --text-2: #3f5148;
+  --text-3: #6d7f74;
+  --line: #d5dfd8;
+  --moss: #1b7a55;
+  --moss-deep: #125c3f;
+  --moss-soft: #e1f3ea;
+  --sand: #a67c2d;
+  --sand-soft: #f7efd8;
+  --clay: #b33b2e;
+  --clay-soft: #f8e6e3;
+  --teal: #0d6e68;
+  --teal-soft: #d9f2ef;
+}
+
+body.shier-app {
+  font-family: "Noto Sans SC", "IBM Plex Sans", "Source Sans Pro", "Open Sans", sans-serif;
+  background: var(--paper);
+  color: var(--text);
+  padding-top: 64px;
+}
+
+/* Hide legacy sidebar layout remnants */
+.sidebar,
+.nav-sidebar {
+  display: none !important;
+}
+
+.shier-main,
+.main.shier-main {
+  float: none;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 28px 48px;
+}
+
+.shier-topnav.navbar-default {
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  min-height: 58px;
+  box-shadow: none;
+}
+
+.shier-topnav .navbar-toggle .icon-bar {
+  background: var(--text-2);
+}
+
+.shier-brand {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  height: 58px;
+  /* Bootstrap sets margin-left: -15px on .navbar-brand inside .container-fluid */
+  margin-left: 0 !important;
+  padding: 0 16px 0 16px !important;
+  color: var(--text) !important;
+}
+
+.shier-topnav > .container-fluid {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.shier-brand-logo,
+.shier-brand .navbar-logo {
+  float: none;
+  margin: 0;
+  height: 32px;
+  width: auto;
+  display: block;
+}
+
+.shier-brand-name {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.shier-nav-links > li > a {
+  font-weight: 600;
+  color: var(--text-3) !important;
+  padding: 19px 12px !important;
+}
+
+.shier-nav-links > li > a:hover,
+.shier-nav-links > li.active > a {
+  background: var(--moss-soft) !important;
+  color: var(--moss-deep) !important;
+}
+
+.shier-nav-actions {
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+}
+
+.shier-nav-actions > li {
+  display: flex;
+  align-items: center;
+}
+
+.shier-nav-actions > li > a.dropdown-toggle {
+  color: var(--text-2) !important;
+  font-weight: 600;
+  padding: 19px 12px !important;
+}
+
+.shier-cta {
+  margin: 12px 8px 12px 0 !important;
+  padding: 8px 14px !important;
+  border-radius: 9px !important;
+  background: var(--moss) !important;
+  border-color: var(--moss) !important;
+  color: #fff !important;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.shier-cta:hover,
+.shier-cta:focus {
+  background: var(--moss-deep) !important;
+  border-color: var(--moss-deep) !important;
+  color: #fff !important;
+}
+
+.shier-settings-menu {
+  min-width: 220px;
+  padding: 8px 0;
+  border-radius: 12px;
+  border-color: var(--line);
+}
+
+.shier-settings-menu .dropdown-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: none;
+  padding: 8px 16px 4px;
+}
+
+.shier-settings-menu > li > a .text-muted {
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+#navbar-dropdown {
+  margin: 12px 0 12px 8px;
+}
+
+#navbar-dropdown .btn-default {
+  border-color: var(--line);
+  color: var(--text-2);
+  background: #fff;
+}
+
+.btn-primary {
+  background-color: var(--moss);
+  border-color: var(--moss);
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active {
+  background-color: var(--moss-deep);
+  border-color: var(--moss-deep);
+}
+
+.page-header {
+  border-bottom-color: var(--line);
+  margin-top: 0;
+}
+
+.shier-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  overflow: visible;
+}
+
+.shier-panel .table-responsive,
+.shier-panel div.dataTables_wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shier-panel table.dataTable {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.shier-panel h2,
+.shier-panel h3 {
+  margin-top: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.shier-risk-hero {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.shier-risk-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.shier-risk-card .label-quiet {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.shier-risk-card .big {
+  margin: 6px 0 0;
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--moss-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.shier-risk-card .delta {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal);
+}
+
+.shier-risk-card .verdict {
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.shier-risk-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.shier-mini {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.shier-mini .k {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.shier-mini .v {
+  margin: 4px 0 0;
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.shier-mini .s {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.shier-mini.span2 {
+  grid-column: 1 / -1;
+}
+
+.shier-charts-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.shier-chart-box {
+  height: 240px;
+  width: 100%;
+}
+
+.shier-funnel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.shier-funnel-step {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: var(--moss);
+}
+
+.shier-funnel-step .pct {
+  opacity: 0.9;
+  font-weight: 500;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.shier-verdict {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+
+.shier-verdict .eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.shier-verdict h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.shier-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.shier-stat {
+  background: var(--paper);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.shier-stat .k {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.shier-stat .v {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.shier-scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.shier-scenario-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+}
+
+.shier-scenario-card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.shier-scenario-card p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-3);
+  flex: 1;
+}
+
+.shier-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--moss-deep);
+  background: var(--moss-soft);
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin: 0 4px 8px 0;
+}
+
+.shier-report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.shier-report-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.map-collapsed {
+  display: none;
+}
+
+@media (max-width: 992px) {
+  .shier-risk-hero,
+  .shier-charts-row,
+  .shier-scenario-grid,
+  .shier-report-grid,
+  .shier-stats,
+  .shier-risk-side {
+    grid-template-columns: 1fr;
+  }
+
+  .shier-main,
+  .main.shier-main {
+    padding: 16px;
+  }
+}

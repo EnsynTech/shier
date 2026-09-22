@@ -1,0 +1,7 @@
+{
+  "subject": "【安全提醒】检测到您的账号存在异常登录，请立即验证",
+  "template_name": "[二维码] 账号异常扫码验证",
+  "page_name": "[二维码] 账号异常扫码验证-落地页",
+  "capture_credentials": true,
+  "capture_passwords": true
+}

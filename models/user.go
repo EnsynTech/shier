@@ -96,17 +96,11 @@ func DeleteUser(id int64) error {
 			return err
 		}
 	}
-	campaigns, err := GetCampaigns(id)
+	// Permanently delete live and trashed campaigns for this user
+	log.Infof("Deleting campaigns for user ID %d", id)
+	err = DeleteAllCampaignsForUser(id)
 	if err != nil {
 		return err
-	}
-	// Delete the campaigns
-	log.Infof("Deleting campaigns for user ID %d", id)
-	for _, campaign := range campaigns {
-		err = DeleteCampaign(campaign.Id)
-		if err != nil {
-			return err
-		}
 	}
 	log.Infof("Deleting pages for user ID %d", id)
 	// Delete the landing pages
@@ -152,6 +146,18 @@ func DeleteUser(id int64) error {
 	}
 	for _, profile := range profiles {
 		err = DeleteSMTP(profile.Id, id)
+		if err != nil {
+			return err
+		}
+	}
+	// Delete SMS/IM sending channels
+	log.Infof("Deleting sending channels for user ID %d", id)
+	channels, err := GetSendingChannels(id)
+	if err != nil {
+		return err
+	}
+	for _, ch := range channels {
+		err = DeleteSendingChannel(ch.Id, id)
 		if err != nil {
 			return err
 		}

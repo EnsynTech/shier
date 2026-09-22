@@ -53,10 +53,12 @@ type Target struct {
 // BaseRecipient contains the fields for a single recipient. This is the base
 // struct used in members of groups and campaign results.
 type BaseRecipient struct {
-	Email     string `json:"email"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Position  string `json:"position"`
+	Email      string `json:"email"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	Position   string `json:"position"`
+	Phone      string `json:"phone"`
+	Department string `json:"department"`
 }
 
 // FormatAddress returns the email address to use in the "To" header of the email
@@ -346,6 +348,8 @@ func UpdateTarget(tx *gorm.DB, target Target) error {
 		"first_name": target.FirstName,
 		"last_name":  target.LastName,
 		"position":   target.Position,
+		"phone":      target.Phone,
+		"department": target.Department,
 	}
 	err := tx.Model(&target).Where("id = ?", target.Id).Updates(targetInfo).Error
 	if err != nil {
@@ -359,6 +363,6 @@ func UpdateTarget(tx *gorm.DB, target Target) error {
 // GetTargets performs a many-to-many select to get all the Targets for a Group
 func GetTargets(gid int64) ([]Target, error) {
 	ts := []Target{}
-	err := db.Table("targets").Select("targets.id, targets.email, targets.first_name, targets.last_name, targets.position").Joins("left join group_targets gt ON targets.id = gt.target_id").Where("gt.group_id=?", gid).Scan(&ts).Error
+	err := db.Table("targets").Select("targets.id, targets.email, targets.first_name, targets.last_name, targets.position, targets.phone, targets.department").Joins("left join group_targets gt ON targets.id = gt.target_id").Where("gt.group_id=?", gid).Scan(&ts).Error
 	return ts, err
 }

@@ -8,7 +8,9 @@ function save(id) {
             first_name: unescapeHtml(target[0]),
             last_name: unescapeHtml(target[1]),
             email: unescapeHtml(target[2]),
-            position: unescapeHtml(target[3])
+            phone: unescapeHtml(target[3]),
+            position: unescapeHtml(target[4]),
+            department: unescapeHtml(target[5])
         })
     })
     var group = {
@@ -77,7 +79,9 @@ function edit(id) {
                       escapeHtml(record.first_name),
                       escapeHtml(record.last_name),
                       escapeHtml(record.email),
+                      escapeHtml(record.phone || ""),
                       escapeHtml(record.position),
+                      escapeHtml(record.department || ""),
                       '<span style="cursor:pointer;"><i class="fa fa-trash-o"></i></span>'
                   ])
                 });
@@ -110,7 +114,9 @@ function edit(id) {
                     record.first_name,
                     record.last_name,
                     record.email,
-                    record.position);
+                    record.phone || "",
+                    record.position,
+                    record.department || "");
             });
             targets.DataTable().draw();
         }
@@ -122,7 +128,9 @@ var downloadCSVTemplate = function () {
         'First Name': 'Example',
         'Last Name': 'User',
         'Email': 'foobar@example.com',
-        'Position': 'Systems Administrator'
+        'Phone': '+8613800138000',
+        'Position': 'Systems Administrator',
+        'Department': 'Finance'
     }]
     var filename = 'group_template.csv'
     var csvString = Papa.unparse(csvScope, {})
@@ -185,14 +193,16 @@ var deleteGroup = function (id) {
     })
 }
 
-function addTarget(firstNameInput, lastNameInput, emailInput, positionInput) {
+function addTarget(firstNameInput, lastNameInput, emailInput, phoneInput, positionInput, departmentInput) {
     // Create new data row.
     var email = escapeHtml(emailInput).toLowerCase();
     var newRow = [
         escapeHtml(firstNameInput),
         escapeHtml(lastNameInput),
         email,
+        escapeHtml(phoneInput || ""),
         escapeHtml(positionInput),
+        escapeHtml(departmentInput || ""),
         '<span style="cursor:pointer;"><i class="fa fa-trash-o"></i></span>'
     ];
 
@@ -241,10 +251,10 @@ function load() {
                         escapeHtml(group.name),
                         escapeHtml(group.num_targets),
                         moment(group.modified_date).format('MMMM Do YYYY, h:mm:ss a'),
-                        "<div class='pull-right'><button class='btn btn-primary' data-toggle='modal' data-backdrop='static' data-target='#modal' onclick='edit(" + group.id + ")'>\
+                        "<div class='pull-right'><button class='btn btn-primary' data-toggle='modal' data-backdrop='static' data-target='#modal' onclick='edit(" + group.id + ")' title='" + t("js.edit") + "' aria-label='" + t("js.edit") + "'>\
                     <i class='fa fa-pencil'></i>\
                     </button>\
-                    <button class='btn btn-danger' onclick='deleteGroup(" + group.id + ")'>\
+                    <button class='btn btn-danger' onclick='deleteGroup(" + group.id + ")' title='" + t("js.delete") + "' aria-label='" + t("js.delete") + "'>\
                     <i class='fa fa-trash-o'></i>\
                     </button></div>"
                     ])
@@ -274,7 +284,9 @@ $(document).ready(function () {
             $("#firstName").val(),
             $("#lastName").val(),
             $("#email").val(),
-            $("#position").val());
+            $("#phone").val(),
+            $("#position").val(),
+            $("#department").val());
         targets.DataTable().draw();
 
         // Reset user input.

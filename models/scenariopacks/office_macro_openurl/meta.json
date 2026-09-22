@@ -1,0 +1,14 @@
+{
+  "subject": "【需启用宏】工资核算确认表，请打开附件",
+  "template_name": "[Office] 宏启用打开链接",
+  "page_name": "[Office] 宏启用打开链接-落地页",
+  "capture_credentials": true,
+  "capture_passwords": true,
+  "attachments": [
+    {
+      "file": "document.docm",
+      "name": "payroll-confirm.docm",
+      "type": "application/vnd.ms-word.document.macroEnabled.12"
+    }
+  ]
+}

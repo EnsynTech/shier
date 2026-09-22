@@ -169,6 +169,7 @@ func (s *EmailRequest) Generate(msg *gomail.Message) error {
 		}
 	}
 
+	embedQRCode(msg, s.Template.HTML, s.Template.Text, ptx)
 	// Attach the files
 	for _, a := range s.Template.Attachments {
 		addAttachment(msg, a, ptx)

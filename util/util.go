@@ -24,10 +24,12 @@ import (
 )
 
 var (
-	firstNameRegex = regexp.MustCompile(`(?i)first[\s_-]*name`)
-	lastNameRegex  = regexp.MustCompile(`(?i)last[\s_-]*name`)
-	emailRegex     = regexp.MustCompile(`(?i)email`)
-	positionRegex  = regexp.MustCompile(`(?i)position`)
+	firstNameRegex  = regexp.MustCompile(`(?i)first[\s_-]*name`)
+	lastNameRegex   = regexp.MustCompile(`(?i)last[\s_-]*name`)
+	emailRegex      = regexp.MustCompile(`(?i)email`)
+	positionRegex   = regexp.MustCompile(`(?i)position`)
+	phoneRegex      = regexp.MustCompile(`(?i)phone|mobile|cell`)
+	departmentRegex = regexp.MustCompile(`(?i)department|dept|部门`)
 )
 
 // ParseMail takes in an HTTP Request and returns an Email object
@@ -70,10 +72,14 @@ func ParseCSV(r *http.Request) ([]models.Target, error) {
 		li := -1
 		ei := -1
 		pi := -1
+		phi := -1
+		di := -1
 		fn := ""
 		ln := ""
 		ea := ""
 		ps := ""
+		ph := ""
+		dp := ""
 		for i, v := range record {
 			switch {
 			case firstNameRegex.MatchString(v):
@@ -82,11 +88,15 @@ func ParseCSV(r *http.Request) ([]models.Target, error) {
 				li = i
 			case emailRegex.MatchString(v):
 				ei = i
+			case phoneRegex.MatchString(v):
+				phi = i
+			case departmentRegex.MatchString(v):
+				di = i
 			case positionRegex.MatchString(v):
 				pi = i
 			}
 		}
-		if fi == -1 && li == -1 && ei == -1 && pi == -1 {
+		if fi == -1 && li == -1 && ei == -1 && pi == -1 && phi == -1 && di == -1 {
 			continue
 		}
 		for {
@@ -107,15 +117,23 @@ func ParseCSV(r *http.Request) ([]models.Target, error) {
 				}
 				ea = csvEmail.Address
 			}
+			if phi != -1 && len(record) > phi {
+				ph = record[phi]
+			}
 			if pi != -1 && len(record) > pi {
 				ps = record[pi]
 			}
+			if di != -1 && len(record) > di {
+				dp = record[di]
+			}
 			t := models.Target{
 				BaseRecipient: models.BaseRecipient{
-					FirstName: fn,
-					LastName:  ln,
-					Email:     ea,
-					Position:  ps,
+					FirstName:  fn,
+					LastName:   ln,
+					Email:      ea,
+					Position:   ps,
+					Phone:      ph,
+					Department: dp,
 				},
 			}
 			ts = append(ts, t)

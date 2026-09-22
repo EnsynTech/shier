@@ -1,0 +1,19 @@
+{
+  "page_name": "[多步骤] IT系统升级确认-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false,
+  "templates": [
+    {
+      "subject": "【通知】本周末将进行系统维护，请知悉",
+      "template_name": "[多步骤] IT系统升级-铺垫",
+      "html": "email_step0.html",
+      "text": "email_step0.txt"
+    },
+    {
+      "subject": "【需确认】请点击完成系统升级确认",
+      "template_name": "[多步骤] IT系统升级-确认",
+      "html": "email_step1.html",
+      "text": "email_step1.txt"
+    }
+  ]
+}

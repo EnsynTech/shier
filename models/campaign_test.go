@@ -152,6 +152,95 @@ func (s *ModelsSuite) TestCampaignGetResults(c *check.C) {
 	c.Assert(len(campaign.Results), check.Equals, len(got.Results))
 }
 
+func (s *ModelsSuite) TestSoftDeleteHidesCampaignAndPreservesResults(c *check.C) {
+	campaign := s.createCampaign(c)
+	resultCount := len(campaign.Results)
+
+	err := DeleteCampaign(campaign.Id)
+	c.Assert(err, check.Equals, nil)
+
+	_, err = GetCampaign(campaign.Id, campaign.UserId)
+	c.Assert(err, check.NotNil)
+
+	summaries, err := GetCampaignSummaries(campaign.UserId)
+	c.Assert(err, check.Equals, nil)
+	for _, cs := range summaries.Campaigns {
+		c.Assert(cs.Id == campaign.Id, check.Equals, false)
+	}
+
+	trash, err := GetDeletedCampaignSummaries(campaign.UserId)
+	c.Assert(err, check.Equals, nil)
+	c.Assert(trash.Total, check.Equals, int64(1))
+	c.Assert(trash.Campaigns[0].Id, check.Equals, campaign.Id)
+	c.Assert(trash.Campaigns[0].DeletedAt, check.NotNil)
+
+	var results []Result
+	err = db.Where("campaign_id=?", campaign.Id).Find(&results).Error
+	c.Assert(err, check.Equals, nil)
+	c.Assert(len(results), check.Equals, resultCount)
+
+	got, err := GetCampaignSummary(campaign.Id, campaign.UserId)
+	c.Assert(err, check.NotNil)
+	c.Assert(got.Id, check.Equals, int64(0))
+}
+
+func (s *ModelsSuite) TestRestoreCampaignDoesNotResumeSending(c *check.C) {
+	campaign := s.createCampaign(c)
+	c.Assert(DeleteCampaign(campaign.Id), check.Equals, nil)
+	c.Assert(RestoreCampaign(campaign.Id, campaign.UserId), check.Equals, nil)
+
+	got, err := GetCampaign(campaign.Id, campaign.UserId)
+	c.Assert(err, check.Equals, nil)
+	c.Assert(got.Status, check.Equals, CampaignComplete)
+	c.Assert(got.DeletedAt, check.IsNil)
+
+	ms, err := GetMailLogsByCampaign(campaign.Id)
+	c.Assert(err, check.Equals, nil)
+	c.Assert(len(ms), check.Equals, 0)
+
+	trash, err := GetDeletedCampaignSummaries(campaign.UserId)
+	c.Assert(err, check.Equals, nil)
+	c.Assert(trash.Total, check.Equals, int64(0))
+}
+
+func (s *ModelsSuite) TestPurgeCampaignRemovesRows(c *check.C) {
+	campaign := s.createCampaign(c)
+	c.Assert(PurgeCampaign(campaign.Id, campaign.UserId), check.Equals, ErrCampaignNotFound)
+
+	c.Assert(DeleteCampaign(campaign.Id), check.Equals, nil)
+	c.Assert(PurgeCampaign(campaign.Id, campaign.UserId), check.Equals, nil)
+
+	var results []Result
+	err := db.Where("campaign_id=?", campaign.Id).Find(&results).Error
+	c.Assert(err, check.Equals, nil)
+	c.Assert(len(results), check.Equals, 0)
+
+	var count int
+	err = db.Unscoped().Model(&Campaign{}).Where("id=?", campaign.Id).Count(&count).Error
+	c.Assert(err, check.Equals, nil)
+	c.Assert(count, check.Equals, 0)
+}
+
+func (s *ModelsSuite) TestGetCampaignBreakdownExcludesDeleted(c *check.C) {
+	campaign := s.createCampaign(c)
+	before, err := GetCampaignBreakdown(campaign.UserId)
+	c.Assert(err, check.Equals, nil)
+	var beforeTotal int64
+	for _, b := range before.ByDepartment {
+		beforeTotal += b.Total
+	}
+	c.Assert(beforeTotal > 0, check.Equals, true)
+
+	c.Assert(DeleteCampaign(campaign.Id), check.Equals, nil)
+	after, err := GetCampaignBreakdown(campaign.UserId)
+	c.Assert(err, check.Equals, nil)
+	var afterTotal int64
+	for _, b := range after.ByDepartment {
+		afterTotal += b.Total
+	}
+	c.Assert(afterTotal < beforeTotal, check.Equals, true)
+}
+
 func setupCampaignDependencies(b *testing.B, size int) {
 	group := Group{Name: "Test Group"}
 	// Create a large group of 5000 members

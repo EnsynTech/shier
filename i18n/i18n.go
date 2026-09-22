@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -15,7 +16,6 @@ const (
 	LangEN = "en"
 	// LangZH is Simplified Chinese.
 	LangZH = "zh"
-	cookieName = "gophish_lang"
 )
 
 var (
@@ -74,10 +74,13 @@ func LoadError() error {
 // Normalize returns a supported language code, or DefaultLang.
 func Normalize(lang string) string {
 	lang = strings.ToLower(strings.TrimSpace(lang))
-	if lang == "zh-cn" || lang == "zh-hans" || lang == "cn" {
+	if lang == "zh-cn" || lang == "zh-hans" || lang == "zh-tw" || lang == "zh-hant" || lang == "cn" {
 		return LangZH
 	}
-	if lang == "en-us" || lang == "en-gb" {
+	if strings.HasPrefix(lang, "zh") {
+		return LangZH
+	}
+	if lang == "en-us" || lang == "en-gb" || strings.HasPrefix(lang, "en") {
 		return LangEN
 	}
 	if supported[lang] {
@@ -86,41 +89,66 @@ func Normalize(lang string) string {
 	return DefaultLang
 }
 
-// FromRequest resolves the language from cookie, then Accept-Language, then default.
-func FromRequest(r *http.Request) string {
-	if c, err := r.Cookie(cookieName); err == nil && c.Value != "" {
-		return Normalize(c.Value)
+// matchLang maps a single Accept-Language tag to a supported language, or "".
+func matchLang(tag string) string {
+	tag = strings.ToLower(strings.TrimSpace(tag))
+	if tag == "" || tag == "*" {
+		return ""
 	}
+	if strings.HasPrefix(tag, "zh") {
+		return LangZH
+	}
+	if strings.HasPrefix(tag, "en") {
+		return LangEN
+	}
+	return ""
+}
+
+// FromRequest resolves the language from the browser Accept-Language header.
+func FromRequest(r *http.Request) string {
 	accept := r.Header.Get("Accept-Language")
 	if accept == "" {
 		return DefaultLang
 	}
-	// Take the first tag (e.g. "zh-CN,zh;q=0.9,en;q=0.8")
-	parts := strings.Split(accept, ",")
-	if len(parts) == 0 {
+
+	type pref struct {
+		lang string
+		q    float64
+	}
+	var prefs []pref
+	for _, part := range strings.Split(accept, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		tag := part
+		q := 1.0
+		if i := strings.Index(part, ";"); i >= 0 {
+			tag = strings.TrimSpace(part[:i])
+			params := part[i+1:]
+			for _, p := range strings.Split(params, ";") {
+				p = strings.TrimSpace(p)
+				if strings.HasPrefix(strings.ToLower(p), "q=") {
+					if v, err := strconv.ParseFloat(strings.TrimSpace(p[2:]), 64); err == nil {
+						q = v
+					}
+				}
+			}
+		}
+		if lang := matchLang(tag); lang != "" {
+			prefs = append(prefs, pref{lang: lang, q: q})
+		}
+	}
+	if len(prefs) == 0 {
 		return DefaultLang
 	}
-	tag := strings.TrimSpace(strings.Split(parts[0], ";")[0])
-	if strings.HasPrefix(strings.ToLower(tag), "zh") {
-		return LangZH
+	best := prefs[0]
+	for _, p := range prefs[1:] {
+		if p.q > best.q {
+			best = p
+		}
 	}
-	if strings.HasPrefix(strings.ToLower(tag), "en") {
-		return LangEN
-	}
-	return DefaultLang
-}
-
-// SetCookie stores the language preference.
-func SetCookie(w http.ResponseWriter, lang string) {
-	lang = Normalize(lang)
-	http.SetCookie(w, &http.Cookie{
-		Name:     cookieName,
-		Value:    lang,
-		Path:     "/",
-		MaxAge:   365 * 24 * 60 * 60,
-		HttpOnly: false,
-		SameSite: http.SameSiteLaxMode,
-	})
+	return best.lang
 }
 
 // T returns the translation for key in the given language.

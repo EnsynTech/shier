@@ -1,0 +1,8 @@
+{
+  "subject": "会议提醒：请确认是否出席",
+  "template_name": "[IM] 会议卡片确认",
+  "page_name": "[IM] 会议卡片确认-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false,
+  "notes": "即时通讯通道样例：Subject 作标题，Text 作正文（含 {{.URL}}）。活动通道选 IM，并配置企业微信/钉钉/Teams 等自定义机器人 Webhook。"
+}

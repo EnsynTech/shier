@@ -1,0 +1,7 @@
+{
+  "subject": "您有一个快递待取件，请扫码查看柜机位置",
+  "template_name": "[二维码] 快递待取件扫码",
+  "page_name": "[二维码] 快递待取件扫码-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false
+}

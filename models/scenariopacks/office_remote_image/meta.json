@@ -1,0 +1,14 @@
+{
+  "subject": "【重要】本周工作汇报文档，请查收附件",
+  "template_name": "[Office] 远程图片追踪文档",
+  "page_name": "[Office] 远程图片追踪文档-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false,
+  "attachments": [
+    {
+      "file": "document.docx",
+      "name": "weekly-report.docx",
+      "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    }
+  ]
+}

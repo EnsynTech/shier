@@ -1,0 +1,19 @@
+{
+  "subject": "附件含验证二维码图片，请用手机扫描",
+  "template_name": "[二维码] PNG 附件扫码",
+  "page_name": "[二维码] PNG 附件扫码-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false,
+  "attachments": [
+    {
+      "file": "qrcode.png",
+      "name": "qrcode.png",
+      "type": "image/png"
+    },
+    {
+      "file": "readme.txt",
+      "name": "scan-instructions.txt",
+      "type": "text/plain"
+    }
+  ]
+}

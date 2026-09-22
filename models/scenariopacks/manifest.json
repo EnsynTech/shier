@@ -1,0 +1,156 @@
+[
+  {
+    "id": "calendar_video_meeting",
+    "category": "calendar",
+    "title": "视频会议邀请",
+    "description": "伪造视频会议日程邮件，附件为可打开的日历邀请（.ics），描述与地点含钓鱼链接。",
+    "has_attachment": true,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用"],
+    "techniques": ["calendar", "attachment", "link"]
+  },
+  {
+    "id": "calendar_hr_training",
+    "category": "calendar",
+    "title": "人力资源强制培训",
+    "description": "HR 强制安全培训日程邮件，附件日历邀请，引导收件人打开链接签到。",
+    "has_attachment": true,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用"],
+    "techniques": ["calendar", "attachment", "link"]
+  },
+  {
+    "id": "qr_account_verify",
+    "category": "qr",
+    "title": "账号异常扫码验证",
+    "description": "以账号安全提醒为名，在邮件正文内嵌二维码（{{.QR}}），引导扫码验证。",
+    "has_attachment": false,
+    "has_qr": true,
+    "difficulty": 3,
+    "industries": ["通用", "金融", "互联网"],
+    "techniques": ["qr", "link"]
+  },
+  {
+    "id": "qr_parcel_pickup",
+    "category": "qr",
+    "title": "快递待取件扫码",
+    "description": "伪造快递柜取件通知，正文内嵌二维码，扫码查看取件信息。",
+    "has_attachment": false,
+    "has_qr": true,
+    "difficulty": 2,
+    "industries": ["通用"],
+    "techniques": ["qr", "link"]
+  },
+  {
+    "id": "office_remote_image",
+    "category": "office",
+    "title": "远程图片追踪文档",
+    "description": "Word 附件含指向追踪像素的远程图片，打开并加载图片可记为打开事件。",
+    "has_attachment": true,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用", "制造", "互联网"],
+    "techniques": ["attachment"]
+  },
+  {
+    "id": "office_macro_openurl",
+    "category": "office",
+    "title": "宏启用打开链接",
+    "description": "宏启用叙事的 Word 文档，内含可替换的钓鱼链接；无法启用宏时可点正文链接。",
+    "has_attachment": true,
+    "has_qr": false,
+    "difficulty": 4,
+    "industries": ["通用", "制造"],
+    "techniques": ["attachment", "link"]
+  },
+  {
+    "id": "office_excel_remote",
+    "category": "office",
+    "title": "Excel 远程图片追踪",
+    "description": "Excel 附件含指向追踪像素的远程图片，打开并加载图片可记为打开事件；正文另有备用链接。",
+    "has_attachment": true,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用", "金融"],
+    "techniques": ["attachment", "link"]
+  },
+  {
+    "id": "qr_pdf_verify",
+    "category": "qr",
+    "title": "PDF 附件扫码验证",
+    "description": "发送时生成含收件人二维码的 PDF 附件；落地页可用 data-URI 再显示二维码。",
+    "has_attachment": true,
+    "has_qr": true,
+    "difficulty": 4,
+    "industries": ["通用", "金融", "政务"],
+    "techniques": ["qr", "attachment", "link"]
+  },
+  {
+    "id": "qr_landing_rescan",
+    "category": "qr",
+    "title": "落地页二次扫码",
+    "description": "邮件内嵌 CID 二维码，落地页再用 {{.QRDataURI}} 显示可扫二维码（多跳）。",
+    "has_attachment": false,
+    "has_qr": true,
+    "difficulty": 4,
+    "industries": ["通用", "互联网"],
+    "techniques": ["qr", "link"]
+  },
+  {
+    "id": "qr_png_attachment",
+    "category": "qr",
+    "title": "PNG 附件扫码",
+    "description": "占位 qrcode.png 在发送时替换为收件人二维码，并附带扫码说明文本。",
+    "has_attachment": true,
+    "has_qr": true,
+    "difficulty": 3,
+    "industries": ["通用"],
+    "techniques": ["qr", "attachment", "link"]
+  },
+  {
+    "id": "multistep_it_notice",
+    "category": "conversation",
+    "title": "IT 维护多步骤确认",
+    "description": "导入两封模板：先铺垫维护通知，再发带链接确认信。请在活动中配置为两步（建议延迟数小时至一天）。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用", "互联网"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "reply_meeting_confirm",
+    "category": "conversation",
+    "title": "会议出席请回复",
+    "description": "引导用户直接回复邮件确认出席；需配置 IMAP 监控与 Reply-To 以检测「已回复」。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用"],
+    "techniques": ["reply"]
+  },
+  {
+    "id": "sms_parcel_pickup",
+    "category": "sms",
+    "title": "短信快递待取件",
+    "description": "短信通道样例：纯文本含钓鱼链接。需自备通用 HTTP 短信网关，活动通道选 SMS。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用"],
+    "techniques": ["sms", "link"]
+  },
+  {
+    "id": "im_meeting_card",
+    "category": "im",
+    "title": "IM 会议确认卡片",
+    "description": "即时通讯 Webhook 样例：标题+正文含链接。可对接企业微信/钉钉等自定义机器人，活动通道选 IM。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用", "互联网"],
+    "techniques": ["im", "link"]
+  }
+]

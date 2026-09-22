@@ -1,16 +1,9 @@
 {
-  "name": "gophish",
-  "version": "0.4.0-dev",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/gophish/gophish.git"
-  },
-  "author": "Jordan Wright",
+  "name": "shier",
+  "version": "0.12.1-shier",
+  "description": "识饵（Shier）：基于 Gophish（https://github.com/gophish/gophish）改造的钓鱼演练与安全意识平台。Not the official Gophish project.",
+  "author": "Shier contributors (based on Gophish by Jordan Wright)",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/gophish/gophish/issues"
-  },
-  "homepage": "https://getgophish.com",
   "devDependencies": {
     "@babel/core": "^7.4.5",
     "@babel/preset-env": "^7.4.5",

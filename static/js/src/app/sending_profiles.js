@@ -15,6 +15,7 @@ function sendTestEmail() {
         last_name: $("input[name=to_last_name]").val(),
         email: $("input[name=to_email]").val(),
         position: $("input[name=to_position]").val(),
+        department: $("input[name=to_department]").val(),
         url: '',
         smtp: {
             from_address: $("#from").val(),
@@ -209,13 +210,13 @@ function load() {
                         escapeHtml(profile.name),
                         profile.interface_type,
                         moment(profile.modified_date).format('MMMM Do YYYY, h:mm:ss a'),
-                        "<div class='pull-right'><span data-toggle='modal' data-backdrop='static' data-target='#modal'><button class='btn btn-primary' data-toggle='tooltip' data-placement='left' title='Edit Profile' onclick='edit(" + i + ")'>\
+                        "<div class='pull-right'><span data-toggle='modal' data-backdrop='static' data-target='#modal'><button class='btn btn-primary' data-toggle='tooltip' data-placement='left' title='" + t("js.edit") + "' aria-label='" + t("js.edit") + "' onclick='edit(" + i + ")'>\
                     <i class='fa fa-pencil'></i>\
                     </button></span>\
-		    <span data-toggle='modal' data-target='#modal'><button class='btn btn-primary' data-toggle='tooltip' data-placement='left' title='Copy Profile' onclick='copy(" + i + ")'>\
+		    <span data-toggle='modal' data-target='#modal'><button class='btn btn-primary' data-toggle='tooltip' data-placement='left' title='" + t("js.copy") + "' aria-label='" + t("js.copy") + "' onclick='copy(" + i + ")'>\
                     <i class='fa fa-copy'></i>\
                     </button></span>\
-                    <button class='btn btn-danger' data-toggle='tooltip' data-placement='left' title='Delete Profile' onclick='deleteProfile(" + i + ")'>\
+                    <button class='btn btn-danger' data-toggle='tooltip' data-placement='left' title='" + t("js.delete") + "' aria-label='" + t("js.delete") + "' onclick='deleteProfile(" + i + ")'>\
                     <i class='fa fa-trash-o'></i>\
                     </button></div>"
                     ])
@@ -258,6 +259,21 @@ function addCustomHeader(header, value) {
         headersTable.row.add(newRow);
     }
     headersTable.draw();
+}
+
+function useImapAsReplyTo() {
+    api.IMAP.get()
+        .success(function (data) {
+            if (!data || !data.length || !data[0].username) {
+                errorFlash(t("profiles.imap_reply_to_missing"))
+                return
+            }
+            addCustomHeader("Reply-To", data[0].username)
+            successFlash(t("profiles.imap_reply_to_applied"))
+        })
+        .error(function () {
+            errorFlash(t("profiles.imap_reply_to_missing"))
+        })
 }
 
 $(document).ready(function () {
@@ -322,6 +338,10 @@ $(document).ready(function () {
         $("#headerKey").val('');
         $("#headerValue").val('');
         $("#headerKey").focus();
+        return false;
+    });
+    $("#useImapReplyTo").on('click', function () {
+        useImapAsReplyTo();
         return false;
     });
     // Handle Deletion

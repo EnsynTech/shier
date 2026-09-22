@@ -1,0 +1,10 @@
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; color:#222; line-height:1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}用户{{end}}，您好：</p>
+  <p>请下载附件中的 <strong>qrcode.png</strong>，使用手机相机扫描完成验证。说明见 <em>scan-instructions.txt</em>。</p>
+  <p>也可直接访问：<a href="{{.URL}}">{{.URL}}</a></p>
+  <p style="color:#888;font-size:12px;">信息安全中心</p>
+  {{.Tracker}}
+</body>
+</html>

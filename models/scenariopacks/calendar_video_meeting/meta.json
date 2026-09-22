@@ -1,0 +1,9 @@
+{
+  "subject": "邀请您参加视频会议：项目周报同步",
+  "template_name": "[日历] 视频会议邀请",
+  "page_name": "[日历] 视频会议邀请-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false,
+  "attachment_name": "meeting-invite.ics",
+  "ics_summary": "项目周报同步会议"
+}

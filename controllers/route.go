@@ -131,15 +131,17 @@ func (as *AdminServer) registerRoutes() {
 	router.HandleFunc("/reset_password", mid.Use(as.ResetPassword, mid.RequireLogin))
 	router.HandleFunc("/campaigns", mid.Use(as.Campaigns, mid.RequireLogin))
 	router.HandleFunc("/campaigns/{id:[0-9]+}", mid.Use(as.CampaignID, mid.RequireLogin))
+	router.HandleFunc("/scenarios", mid.Use(as.Scenarios, mid.RequireLogin))
+	router.HandleFunc("/reports", mid.Use(as.Reports, mid.RequireLogin))
 	router.HandleFunc("/templates", mid.Use(as.Templates, mid.RequireLogin))
 	router.HandleFunc("/groups", mid.Use(as.Groups, mid.RequireLogin))
 	router.HandleFunc("/landing_pages", mid.Use(as.LandingPages, mid.RequireLogin))
 	router.HandleFunc("/sending_profiles", mid.Use(as.SendingProfiles, mid.RequireLogin))
+	router.HandleFunc("/sending_channels", mid.Use(as.SendingChannelsPage, mid.RequireLogin))
 	router.HandleFunc("/settings", mid.Use(as.Settings, mid.RequireLogin))
 	router.HandleFunc("/users", mid.Use(as.UserManagement, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	router.HandleFunc("/webhooks", mid.Use(as.Webhooks, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	router.HandleFunc("/impersonate", mid.Use(as.Impersonate, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
-	router.HandleFunc("/lang", as.SetLanguage)
 	// Create the API routes
 	api := api.NewServer(
 		api.WithWorker(as.worker),
@@ -212,27 +214,6 @@ func translationsJS(lang string) template.JS {
 	return template.JS(b)
 }
 
-// SetLanguage stores the UI language preference in a cookie and redirects back.
-func (as *AdminServer) SetLanguage(w http.ResponseWriter, r *http.Request) {
-	lang := i18n.Normalize(r.URL.Query().Get("lang"))
-	i18n.SetCookie(w, lang)
-	next := r.URL.Query().Get("next")
-	if next == "" {
-		if ref := r.Header.Get("Referer"); ref != "" {
-			if u, err := url.Parse(ref); err == nil && u.Path != "" {
-				next = u.Path
-				if u.RawQuery != "" {
-					next += "?" + u.RawQuery
-				}
-			}
-		}
-	}
-	if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-		next = "/"
-	}
-	http.Redirect(w, r, next, http.StatusFound)
-}
-
 // Base handles the default path and template execution
 func (as *AdminServer) Base(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
@@ -252,6 +233,20 @@ func (as *AdminServer) CampaignID(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
 	params.Title = i18n.T(params.Lang, "title.campaign_results")
 	getTemplate(w, "campaign_results", params.Lang).ExecuteTemplate(w, "base", params)
+}
+
+// Scenarios renders the scenario pack library page.
+func (as *AdminServer) Scenarios(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = i18n.T(params.Lang, "title.scenarios")
+	getTemplate(w, "scenarios", params.Lang).ExecuteTemplate(w, "base", params)
+}
+
+// Reports renders the reports hub page.
+func (as *AdminServer) Reports(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = i18n.T(params.Lang, "title.reports")
+	getTemplate(w, "reports", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // Templates handles the default path and template execution
@@ -280,6 +275,13 @@ func (as *AdminServer) SendingProfiles(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
 	params.Title = i18n.T(params.Lang, "title.sending_profiles")
 	getTemplate(w, "sending_profiles", params.Lang).ExecuteTemplate(w, "base", params)
+}
+
+// SendingChannelsPage renders the SMS/IM sending channels management page.
+func (as *AdminServer) SendingChannelsPage(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = i18n.T(params.Lang, "title.sending_channels")
+	getTemplate(w, "sending_channels", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // Settings handles the changing of settings

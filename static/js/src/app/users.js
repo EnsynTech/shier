@@ -212,13 +212,13 @@ const load = () => {
                     escapeHtml(user.role.name),
                     lastlogin,
                     "<div class='pull-right'>\
-                    <button class='btn btn-warning impersonate_button' data-user-id='" + user.id + "'>\
+                    <button class='btn btn-warning impersonate_button' data-user-id='" + user.id + "' title='" + t("js.impersonate") + "' aria-label='" + t("js.impersonate") + "'>\
                     <i class='fa fa-retweet'></i>\
                     </button>\
-                    <button class='btn btn-primary edit_button' data-toggle='modal' data-backdrop='static' data-target='#modal' data-user-id='" + user.id + "'>\
+                    <button class='btn btn-primary edit_button' data-toggle='modal' data-backdrop='static' data-target='#modal' data-user-id='" + user.id + "' title='" + t("js.edit") + "' aria-label='" + t("js.edit") + "'>\
                     <i class='fa fa-pencil'></i>\
                     </button>\
-                    <button class='btn btn-danger delete_button' data-user-id='" + user.id + "'>\
+                    <button class='btn btn-danger delete_button' data-user-id='" + user.id + "' title='" + t("js.delete") + "' aria-label='" + t("js.delete") + "'>\
                     <i class='fa fa-trash-o'></i>\
                     </button></div>"
                 ])

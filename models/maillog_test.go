@@ -188,7 +188,21 @@ func (s *ModelsSuite) TestMailLogSuccess(ch *check.C) {
 
 	ms, err := GetMailLogsByCampaign(campaign.Id)
 	ch.Assert(err, check.Equals, nil)
-	ch.Assert(len(ms), check.Equals, len(campaign.Results)-1)
+	ch.Assert(len(ms), check.Equals, len(campaign.Results))
+	// Successful maillogs are retained (for Message-ID reply matching) but marked sent.
+	var foundSent bool
+	for _, ml := range ms {
+		if ml.RId == result.RId {
+			ch.Assert(ml.Sent, check.Equals, true)
+			foundSent = true
+		}
+	}
+	ch.Assert(foundSent, check.Equals, true)
+	queued, err := GetQueuedMailLogs(time.Now().UTC().Add(time.Hour))
+	ch.Assert(err, check.Equals, nil)
+	for _, q := range queued {
+		ch.Assert(q.RId == result.RId && q.CampaignId == campaign.Id, check.Equals, false)
+	}
 }
 
 func (s *ModelsSuite) TestGenerateMailLog(ch *check.C) {

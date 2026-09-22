@@ -1,0 +1,9 @@
+{
+  "subject": "【必须参加】信息安全意识强制培训通知",
+  "template_name": "[日历] 人力资源强制培训",
+  "page_name": "[日历] 人力资源强制培训-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false,
+  "attachment_name": "training-invite.ics",
+  "ics_summary": "信息安全意识强制培训"
+}

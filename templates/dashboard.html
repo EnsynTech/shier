@@ -1,8 +1,13 @@
 {{define "body"}}
-<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
-    <h1 class="page-header">
-        {{ T "title.dashboard" }}
-    </h1>
+<div class="container-fluid shier-main main">
+    <div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div>
+            <h1 class="page-header" style="border:none;margin-bottom:4px;">{{ T "title.dashboard" }}</h1>
+        </div>
+        <div>
+            <a class="btn btn-primary" href="/campaigns?new=1">{{ T "nav.launch" }}</a>
+        </div>
+    </div>
     <div id="loading">
         <i class="fa fa-spinner fa-spin fa-4x"></i>
     </div>
@@ -10,61 +15,86 @@
     <div id="emptyMessage" style="display:none;">
         <div class="alert alert-info">
             {{ T "dashboard.empty" }}
+            <div style="margin-top:12px;">
+                <a class="btn btn-default" href="/groups">{{ T "dashboard.empty_cta_groups" }}</a>
+                <a class="btn btn-default" href="/scenarios">{{ T "dashboard.empty_cta_scenarios" }}</a>
+                <a class="btn btn-primary" href="/campaigns?new=1">{{ T "dashboard.empty_cta_launch" }}</a>
+            </div>
         </div>
     </div>
     <div id="dashboard" style="display:none;">
-        <div class="row">
-            <div id="overview_chart" style="height:200px;" class="col-lg-12 col-md-12 col-sm-12 col-xs-12"></div>
+        <div class="shier-risk-hero">
+            <article class="shier-risk-card">
+                <p class="label-quiet">{{ T "dashboard.phish_prone" }}</p>
+                <p class="big" id="phishProneRate">—</p>
+                <p class="delta" id="phishProneHelp">{{ T "dashboard.phish_prone_help" }}</p>
+                <p class="verdict" id="phishProneVerdict">{{ T "dashboard.verdict_default" }}</p>
+            </article>
+            <div class="shier-risk-side">
+                <div class="shier-mini">
+                    <p class="k">{{ T "dashboard.active_campaigns" }}</p>
+                    <p class="v" id="activeCampaignCount">0</p>
+                </div>
+                <div class="shier-mini">
+                    <p class="k">{{ T "dashboard.report_rate" }}</p>
+                    <p class="v" id="reportRate">—</p>
+                </div>
+                <div class="shier-mini span2">
+                    <p class="k">{{ T "dashboard.recent" }}</p>
+                    <p class="s" id="recentCampaignHint"></p>
+                </div>
+            </div>
         </div>
-        <div class="row">
-            <div style="height:200px;" class="col-lg-1 col-md-1"></div>
-            <div id="sent_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div id="opened_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div id="clicked_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div id="submitted_data_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div id="email_reported_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div style="height:200px;" class="col-lg-1 col-md-1"></div>
+
+        <div class="shier-charts-row">
+            <section class="shier-panel">
+                <h2>{{ T "dashboard.trend_title" }}</h2>
+                <p class="text-muted">{{ T "dashboard.trend_help" }}</p>
+                <div id="overview_chart" class="shier-chart-box"></div>
+            </section>
+            <section class="shier-panel">
+                <h2>{{ T "dashboard.dept_chart_title" }}</h2>
+                <p class="text-muted">{{ T "dashboard.dept_chart_help" }}</p>
+                <div id="dept_chart" class="shier-chart-box"></div>
+            </section>
         </div>
-        <div class="row">
-            <h2>{{ T "dashboard.recent" }}</h2>
+
+        <div class="shier-panel">
+            <h2>{{ T "dashboard.dept_technique" }}</h2>
+            <p class="text-muted">{{ T "dashboard.dept_technique_help" }}</p>
+            <div class="table-responsive">
+                <table id="deptTechniqueTable" class="table table-bordered table-condensed">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
-        <div class="row">
-            <a href="/campaigns">
-                <button type="button" class="btn btn-primary">{{ T "dashboard.view_all" }}</button>
-            </a>
-        </div>
-        &nbsp;&nbsp;
-        <div class="row">
+
+        <div class="shier-panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+                <h2 style="margin:0;">{{ T "dashboard.recent" }}</h2>
+                <a href="/campaigns" class="btn btn-default btn-sm">{{ T "dashboard.view_all" }}</a>
+            </div>
             <table id="campaignTable" class="table">
                 <thead>
                     <tr>
-                        <th class="col-md-2 col-sm-2">{{ T "common.name" }}</th>
-                        <th class="col-md-2 col-sm-2">{{ T "common.created" }}</th>
-                        <th class="col-md-1 col-sm-1">
-                            <i class="fa fa-envelope-o"></i>
-                        </th>
-                        <th class="col-md-1 col-sm-1">
-                            <i class="fa fa-envelope-open-o"></i>
-                        </th>
-                        <th class="col-md-1 col-sm-1">
-                            <i class="fa fa-mouse-pointer"></i>
-                        </th>
-                        <th class="col-md-1 col-sm-1">
-                            <i class="fa fa-exclamation-circle"></i>
-                        </th>
-                        <th class="col-md-1 col-sm-1">
-                            <i class="fa fa-bullhorn"></i>
-                        </th>
-                        <th class="col-md-1 col-sm-1">{{ T "common.status" }}</th>
-                        <th class="col-md-2 col-sm-2 no-sort"></th>
+                        <th>{{ T "common.name" }}</th>
+                        <th>{{ T "common.created" }}</th>
+                        <th><i class="fa fa-envelope-o"></i></th>
+                        <th><i class="fa fa-envelope-open-o"></i></th>
+                        <th><i class="fa fa-mouse-pointer"></i></th>
+                        <th><i class="fa fa-exclamation-circle"></i></th>
+                        <th><i class="fa fa-bullhorn"></i></th>
+                        <th>{{ T "common.status" }}</th>
+                        <th class="no-sort"></th>
                     </tr>
                 </thead>
-                <tbody>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
 </div>
-{{end}} {{define "scripts"}}
+{{end}}
+{{define "scripts"}}
 <script src="/js/dist/app/dashboard.min.js"></script>
 {{end}}

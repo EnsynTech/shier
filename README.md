@@ -1,0 +1,64 @@
+# 识饵（Shier）
+
+识饵是面向钓鱼演练与安全意识培训的管理平台，由咨询方（乙方）用于组织演练、展示结果，并服务甲方安全运营与意识培训负责人。
+
+## 与 Gophish 的关系
+
+本项目基于开源项目 [Gophish](https://github.com/gophish/gophish) 改造，并在原有能力上扩展了多手法剧本、发送通道、中英双语管理界面、演练结果分析，以及面向外部模型的 REST 配置能力等。
+
+- **不是**官方 Gophish，也**不代表** Gophish 上游项目或其作者。
+- 产品名称、界面品牌与文档中的「识饵 / Shier」仅用于本分支的衍生作品标识。
+- 代码中仍可能保留 `gophish` 作为模块路径、二进制名、配置文件名或内部标识，以便与上游兼容、便于合并更新；这不改变本仓库的产品品牌。
+
+上游项目主页：<https://getgophish.com>  
+上游源码：<https://github.com/gophish/gophish>
+
+## 开源许可与版权声明
+
+上游 Gophish Community Edition 使用 **MIT License**。MIT 允许修改、再分发与商业使用，但要求：
+
+1. 保留原作者版权声明与许可全文；
+2. 在再分发的副本或实质部分中附带上述声明。
+
+因此本仓库：
+
+- 完整保留上游 `LICENSE`（Copyright (c) 2013-2020 Jordan Wright）；
+- 在 README 中明确标注本项目为基于 Gophish 的衍生改造；
+- 对本分支新增与修改部分，在适用范围内继续按 MIT 条款使用与分发。
+
+请勿删除、改写或隐藏 `LICENSE` 中的上游版权与许可文本。若对外发布二进制或源码包，请一并附带本 `LICENSE` 与本 README 中的出处说明。
+
+完整许可文本见仓库根目录 [`LICENSE`](./LICENSE)。
+
+## 主要能力（本分支）
+
+- 钓鱼演练活动管理、结果统计与部门 × 手法维度分析
+- 内置剧本包（链接、附件、二维码、短信、即时通讯、日历、回复等多手法）
+- 非邮件发送通道（短信 HTTP 网关、即时通讯 Webhook 风格配置）
+- 管理端中英双语（按浏览器 `Accept-Language` 自动选择）
+- 面向外部 AI / 自动化的 REST API（配置可编排；**正式发送需人工确认或一次性确认令牌**）
+
+机器可读 API 说明见 [`docs/openapi.yaml`](./docs/openapi.yaml)。
+
+## 本地运行（简要）
+
+本仓库默认配置见 `config.json`：管理端约 `:13333`，钓鱼监听端约 `:18000`。
+
+从源码构建（需安装 Go）：
+
+```bash
+go build
+./gophish
+```
+
+启动后在浏览器打开管理端地址，使用日志中打印的初始管理员账号登录。
+
+本地邮件联调与按手法端到端验收说明见 [`docs/e2e-local-mailpit.md`](./docs/e2e-local-mailpit.md) 与 [`docs/e2e/README.md`](./docs/e2e/README.md)。
+
+## 分支与上游同步
+
+定制开发在 `shier` 分支进行。官方 Gophish 远程通常命名为 `upstream`，用于拉取上游更新；请勿将本分支的定制提交直接推送到官方上游仓库。
+
+## 致谢
+
+感谢 [Jordan Wright](https://github.com/jordan-wright) 与 Gophish 社区提供的开源基础。本项目中所有对上游代码的使用，均遵循其 MIT 许可约定。

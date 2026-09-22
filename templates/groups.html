@@ -1,5 +1,5 @@
 {{define "body"}}
-<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+<div class="container-fluid shier-main main">
     <div class="row">
         <h1 class="page-header">
             {{ T "title.groups" }}
@@ -69,11 +69,17 @@
                         <div class="col-sm-2">
                             <input type="text" class="form-control" placeholder="{{ T "common.last_name" }}" id="lastName">
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-sm-2">
                             <input type="email" class="form-control" placeholder="{{ T "common.email" }}" id="email" required>
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-sm-2">
+                            <input type="text" class="form-control" placeholder="{{ T "common.phone" }}" id="phone">
+                        </div>
+                        <div class="col-sm-1">
                             <input type="text" class="form-control" placeholder="{{ T "common.position" }}" id="position">
+                        </div>
+                        <div class="col-sm-2">
+                            <input type="text" class="form-control" placeholder="{{ T "common.department" }}" id="department">
                         </div>
                         <div class="col-sm-1">
                             <button type="submit" class="btn btn-danger btn-lg">
@@ -88,7 +94,9 @@
                             <th>{{ T "groups.first_name" }}</th>
                             <th>{{ T "groups.last_name" }}</th>
                             <th>{{ T "common.email" }}</th>
+                            <th>{{ T "common.phone" }}</th>
                             <th>{{ T "groups.position_col" }}</th>
+                            <th>{{ T "common.department" }}</th>
                             <th class="no-sort"></th>
                     <tbody>
                     </tbody>

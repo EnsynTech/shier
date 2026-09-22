@@ -1,11 +1,12 @@
 {{define "body"}}
-<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+<div class="container-fluid shier-main main">
     <div id="loading">
         <i class="fa fa-spinner fa-spin fa-4x"></i>
     </div>
     <div style="display:none;" id="campaignResults">
         <div class="row">
-            <h1 class="page-header" id="page-title">Results for campaign.name</h1>
+            <h1 class="page-header" id="page-title" style="border:none;margin-bottom:4px;">Results for campaign.name</h1>
+            <div id="campaignTagBadges" style="margin-bottom:12px;"></div>
         </div>
         <div class="row">
             <a href="/campaigns" class="btn btn-default">
@@ -40,33 +41,63 @@
             </span>
         </div>
         <br />
-        <div class="row">
-            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                <div class="row">
-                    <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                        <div id="timeline_chart"></div>
-                    </div>
+
+        <section class="shier-panel" id="resultsVerdict">
+            <h2>{{ T "results.verdict_title" }}</h2>
+            <div class="shier-risk-side" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+                <div class="shier-mini">
+                    <p class="k">{{ T "results.phish_prone" }}</p>
+                    <p class="v" id="verdictPhishProne">—</p>
                 </div>
-                <div class="row">
-                    <div style="height:200px;" class="col-lg-1 col-md-1"></div>
-                    <div id="sent_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-                    <div id="opened_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-                    <div id="clicked_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-                    <div id="submitted_data_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-                    <div id="reported_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-                    <div style="height:200px;" class="col-lg-1 col-md-1"></div>
+                <div class="shier-mini">
+                    <p class="k">{{ T "results.clicked" }}</p>
+                    <p class="v" id="verdictClicked">—</p>
                 </div>
-                <div class="row" id="resultsMapContainer">
-                    <div class="col-md-6">
-                        <p style="text-align:center;">{{ T "results.map" }}</p>
-                        <div id="resultsMap"></div>
-                    </div>
+                <div class="shier-mini">
+                    <p class="k">{{ T "results.submitted" }}</p>
+                    <p class="v" id="verdictSubmitted">—</p>
+                </div>
+                <div class="shier-mini">
+                    <p class="k">{{ T "results.reported" }}</p>
+                    <p class="v" id="verdictReported">—</p>
                 </div>
             </div>
-        </div>
-        <div class="row">
+            <p class="verdict" id="verdictText" style="margin-top:12px;"></p>
+        </section>
+
+        <section class="shier-panel">
+            <h2>{{ T "results.funnel_title" }}</h2>
+            <div class="shier-funnel" id="resultsFunnel"></div>
+            <div id="timeline_chart" style="margin-top:16px;"></div>
+            <div style="display:none;">
+                <div id="sent_chart"></div>
+                <div id="opened_chart"></div>
+                <div id="clicked_chart"></div>
+                <div id="submitted_data_chart"></div>
+                <div id="reported_chart"></div>
+                <div id="replied_chart"></div>
+            </div>
+        </section>
+
+        <section class="shier-panel">
+            <h2>{{ T "results.department_breakdown" }}</h2>
+            <table id="departmentBreakdownTable" class="table table-condensed">
+                <thead>
+                    <tr>
+                        <th>{{ T "common.department" }}</th>
+                        <th>{{ T "results.dept_total" }}</th>
+                        <th>{{ T "results.dept_clicked" }}</th>
+                        <th>{{ T "results.dept_click_rate" }}</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section class="shier-panel">
             <h2>{{ T "results.details" }}</h2>
-            <table id="resultsTable" class="table">
+            <div class="table-responsive">
+            <table id="resultsTable" class="table nowrap" style="width:100%">
                 <thead>
                     <tr>
                         <th>{{ T "results.result_id" }}</th>
@@ -75,17 +106,29 @@
                         <th>{{ T "common.first_name" }}</th>
                         <th>{{ T "common.email" }}</th>
                         <th>{{ T "common.position" }}</th>
+                        <th>{{ T "common.department" }}</th>
                         <th>{{ T "common.status" }}</th>
                         <th class="text-center">{{ T "results.reported" }}</th>
+                        <th class="text-center">{{ T "results.replied" }}</th>
                     </tr>
                 </thead>
                 <tbody>
                 </tbody>
             </table>
-        </div>
+            </div>
+        </section>
+
+        <section class="shier-panel">
+            <button type="button" class="btn btn-default" id="toggleResultsMap">{{ T "results.map_toggle" }}</button>
+            <div id="resultsMapContainer" style="display:none;margin-top:12px;">
+                <p style="text-align:center;">{{ T "results.map" }}</p>
+                <div id="resultsMap"></div>
+            </div>
+        </section>
     </div>
     <div id="flashes" class="row"></div>
 </div>
-{{end}} {{define "scripts"}}
+{{end}}
+{{define "scripts"}}
 <script src="/js/dist/app/campaign_results.min.js"></script>
 {{end}}

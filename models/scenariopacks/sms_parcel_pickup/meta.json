@@ -1,0 +1,8 @@
+{
+  "subject": "【快递】您有一个包裹待取件",
+  "template_name": "[短信] 快递待取件",
+  "page_name": "[短信] 快递待取件-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false,
+  "notes": "短信通道样例：仅使用 Text 正文（含 {{.URL}}）。活动通道选 SMS，并配置通用 HTTP 短信网关。"
+}

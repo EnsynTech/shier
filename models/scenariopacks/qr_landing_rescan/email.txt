@@ -1,0 +1,6 @@
+{{if .FirstName}}{{.FirstName}}{{else}}用户{{end}}，您好：
+
+请打开确认页并扫描页面二维码：
+{{.URL}}
+
+信息安全中心

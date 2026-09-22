@@ -2,7 +2,9 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	log "github.com/gophish/gophish/logger"
@@ -13,33 +15,46 @@ import (
 
 // Campaign is a struct representing a created campaign
 type Campaign struct {
-	Id            int64     `json:"id"`
-	UserId        int64     `json:"-"`
-	Name          string    `json:"name" sql:"not null"`
-	CreatedDate   time.Time `json:"created_date"`
-	LaunchDate    time.Time `json:"launch_date"`
-	SendByDate    time.Time `json:"send_by_date"`
-	CompletedDate time.Time `json:"completed_date"`
-	TemplateId    int64     `json:"-"`
-	Template      Template  `json:"template"`
-	PageId        int64     `json:"-"`
-	Page          Page      `json:"page"`
-	Status        string    `json:"status"`
-	Results       []Result  `json:"results,omitempty"`
-	Groups        []Group   `json:"groups,omitempty"`
-	Events        []Event   `json:"timeline,omitempty"`
-	SMTPId        int64     `json:"-"`
-	SMTP          SMTP      `json:"smtp"`
-	URL           string    `json:"url"`
+	Id               int64          `json:"id"`
+	UserId           int64          `json:"-"`
+	Name             string         `json:"name" sql:"not null"`
+	CreatedDate      time.Time      `json:"created_date"`
+	LaunchDate       time.Time      `json:"launch_date"`
+	SendByDate       time.Time      `json:"send_by_date"`
+	CompletedDate    time.Time      `json:"completed_date"`
+	TemplateId       int64          `json:"-"`
+	Template         Template       `json:"template"`
+	PageId           int64          `json:"-"`
+	Page             Page           `json:"page"`
+	Status           string         `json:"status"`
+	Results          []Result       `json:"results,omitempty"`
+	Groups           []Group        `json:"groups,omitempty"`
+	Events           []Event        `json:"timeline,omitempty"`
+	Steps            []CampaignStep `json:"steps,omitempty"`
+	SMTPId           int64          `json:"-"`
+	SMTP             SMTP           `json:"smtp"`
+	Channel          string         `json:"channel"`
+	SendingChannelId int64          `json:"sending_channel_id"`
+	SendingChannel   SendingChannel `json:"sending_channel"`
+	URL              string         `json:"url"`
+	ScenarioPackId   string         `json:"scenario_pack_id"`
+	Difficulty       int            `json:"difficulty"`
+	Industries       StringList     `json:"industries" gorm:"type:text"`
+	Techniques       StringList     `json:"techniques" gorm:"type:text"`
+	DeletedAt        *time.Time     `json:"deleted_at,omitempty" sql:"index"`
 }
 
 // CampaignResults is a struct representing the results from a campaign
 type CampaignResults struct {
-	Id      int64    `json:"id"`
-	Name    string   `json:"name"`
-	Status  string   `json:"status"`
-	Results []Result `json:"results,omitempty"`
-	Events  []Event  `json:"timeline,omitempty"`
+	Id             int64      `json:"id"`
+	Name           string     `json:"name"`
+	Status         string     `json:"status"`
+	Results        []Result   `json:"results,omitempty"`
+	Events         []Event    `json:"timeline,omitempty"`
+	ScenarioPackId string     `json:"scenario_pack_id"`
+	Difficulty     int        `json:"difficulty"`
+	Industries     StringList `json:"industries"`
+	Techniques     StringList `json:"techniques"`
 }
 
 // CampaignSummaries is a struct representing the overview of campaigns
@@ -58,6 +73,7 @@ type CampaignSummary struct {
 	Status        string        `json:"status"`
 	Name          string        `json:"name"`
 	Stats         CampaignStats `json:"stats"`
+	DeletedAt     *time.Time    `json:"deleted_at,omitempty"`
 }
 
 // CampaignStats is a struct representing the statistics for a single campaign
@@ -68,6 +84,7 @@ type CampaignStats struct {
 	ClickedLink   int64 `json:"clicked"`
 	SubmittedData int64 `json:"submitted_data"`
 	EmailReported int64 `json:"email_reported"`
+	EmailReplied  int64 `json:"email_replied"`
 	Error         int64 `json:"error"`
 }
 
@@ -126,23 +143,79 @@ var ErrSMTPNotFound = errors.New("Sending profile not found")
 // launch date
 var ErrInvalidSendByDate = errors.New("The launch date must be before the \"send emails by\" date")
 
+// ErrCampaignNotDraft indicates launch was requested for a non-draft campaign.
+var ErrCampaignNotDraft = errors.New("campaign is not in draft status")
+
+// ErrCampaignNotFound indicates the campaign does not exist for this user.
+var ErrCampaignNotFound = errors.New("campaign not found")
+
+// ErrPurgeConfirmationRequired indicates a purge request lacked confirm=purge.
+var ErrPurgeConfirmationRequired = errors.New("purge_confirmation_required")
+
+// PurgeConfirmValue is the request body value required to permanently delete a campaign.
+const PurgeConfirmValue = "purge"
+
 // RecipientParameter is the URL parameter that points to the result ID for a recipient.
 const RecipientParameter = "rid"
 
+// NormalizeChannel returns a supported campaign channel, defaulting to email.
+func NormalizeChannel(ch string) string {
+	switch strings.ToLower(strings.TrimSpace(ch)) {
+	case ChannelSMS:
+		return ChannelSMS
+	case ChannelIM:
+		return ChannelIM
+	default:
+		return ChannelEmail
+	}
+}
+
+// IsHTTPChannel reports whether the campaign uses SMS or IM delivery.
+func (c *Campaign) IsHTTPChannel() bool {
+	ch := NormalizeChannel(c.Channel)
+	return ch == ChannelSMS || ch == ChannelIM
+}
+
 // Validate checks to make sure there are no invalid fields in a submitted campaign
 func (c *Campaign) Validate() error {
-	switch {
-	case c.Name == "":
+	c.Channel = NormalizeChannel(c.Channel)
+	if c.Name == "" {
 		return ErrCampaignNameNotSpecified
-	case len(c.Groups) == 0:
+	}
+	if len(c.Groups) == 0 {
 		return ErrGroupNotSpecified
-	case c.Template.Name == "":
+	}
+	if len(c.Steps) > 0 {
+		for i := range c.Steps {
+			if c.Steps[i].Template.Name == "" {
+				return ErrCampaignStepInvalid
+			}
+			trig, err := normalizeTrigger(c.Steps[i].Trigger)
+			if err != nil {
+				return err
+			}
+			c.Steps[i].Trigger = trig
+			c.Steps[i].StepIndex = i
+			if i == 0 {
+				c.Steps[i].DelayMinutes = 0
+			}
+		}
+		// Align top-level template with step 0 for backward-compatible clients.
+		c.Template.Name = c.Steps[0].Template.Name
+	} else if c.Template.Name == "" {
 		return ErrTemplateNotSpecified
-	case c.Page.Name == "":
+	}
+	if c.Page.Name == "" {
 		return ErrPageNotSpecified
-	case c.SMTP.Name == "":
+	}
+	if c.IsHTTPChannel() {
+		if c.SendingChannel.Name == "" && c.SendingChannelId == 0 {
+			return ErrSendingChannelNotSpecified
+		}
+	} else if c.SMTP.Name == "" {
 		return ErrSMTPNotSpecified
-	case !c.SendByDate.IsZero() && !c.LaunchDate.IsZero() && c.SendByDate.Before(c.LaunchDate):
+	}
+	if !c.SendByDate.IsZero() && !c.LaunchDate.IsZero() && c.SendByDate.Before(c.LaunchDate) {
 		return ErrInvalidSendByDate
 	}
 	return nil
@@ -212,20 +285,42 @@ func (c *Campaign) getDetails() error {
 		c.Page = Page{Name: "[Deleted]"}
 		log.Warnf("%s: page not found for campaign", err)
 	}
-	err = db.Table("smtp").Where("id=?", c.SMTPId).Find(&c.SMTP).Error
-	if err != nil {
-		// Check if the SMTP was deleted
-		if err != gorm.ErrRecordNotFound {
+	if c.SMTPId != 0 {
+		err = db.Table("smtp").Where("id=?", c.SMTPId).Find(&c.SMTP).Error
+		if err != nil {
+			// Check if the SMTP was deleted
+			if err != gorm.ErrRecordNotFound {
+				return err
+			}
+			c.SMTP = SMTP{Name: "[Deleted]"}
+			log.Warnf("%s: sending profile not found for campaign", err)
+		}
+		err = db.Where("smtp_id=?", c.SMTP.Id).Find(&c.SMTP.Headers).Error
+		if err != nil && err != gorm.ErrRecordNotFound {
+			log.Warn(err)
 			return err
 		}
-		c.SMTP = SMTP{Name: "[Deleted]"}
-		log.Warnf("%s: sending profile not found for campaign", err)
 	}
-	err = db.Where("smtp_id=?", c.SMTP.Id).Find(&c.SMTP.Headers).Error
+	if c.SendingChannelId != 0 {
+		ch, chErr := GetSendingChannel(c.SendingChannelId, c.UserId)
+		if chErr != nil {
+			if chErr != ErrSendingChannelNotFound && chErr != gorm.ErrRecordNotFound {
+				return chErr
+			}
+			c.SendingChannel = SendingChannel{Name: "[Deleted]"}
+			log.Warnf("%s: sending channel not found for campaign", chErr)
+		} else {
+			ch.MaskSecret()
+			c.SendingChannel = ch
+		}
+	}
+	c.Channel = NormalizeChannel(c.Channel)
+	steps, err := GetCampaignSteps(c.Id)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		log.Warn(err)
 		return err
 	}
+	c.Steps = steps
 	return nil
 }
 
@@ -238,7 +333,11 @@ func (c *Campaign) getBaseURL() string {
 // getFromAddress returns the Campaign's configured SMTP "From" address.
 // This is used to implement the TemplateContext interface.
 func (c *Campaign) getFromAddress() string {
-	return c.SMTP.FromAddress
+	if c.SMTP.FromAddress != "" {
+		return c.SMTP.FromAddress
+	}
+	// SMS/IM campaigns may have no SMTP profile; provide a parseable placeholder.
+	return "noreply@localhost"
 }
 
 // generateSendDate creates a sendDate
@@ -283,6 +382,11 @@ func getCampaignStats(cid int64) (CampaignStats, error) {
 	if err != nil {
 		return s, err
 	}
+	query = db.Table("results").Where("campaign_id = ?", cid)
+	query.Where("replied=?", true).Count(&s.EmailReplied)
+	if err != nil {
+		return s, err
+	}
 	// Every submitted data event implies they clicked the link
 	s.ClickedLink += s.SubmittedData
 	err = query.Where("status=?", EventOpened).Count(&s.OpenedEmail).Error
@@ -301,10 +405,18 @@ func getCampaignStats(cid int64) (CampaignStats, error) {
 	return s, err
 }
 
+func whereCampaignNotDeleted(query *gorm.DB) *gorm.DB {
+	return query.Where("deleted_at IS NULL")
+}
+
+func whereJoinedCampaignNotDeleted(query *gorm.DB) *gorm.DB {
+	return query.Where("campaigns.deleted_at IS NULL")
+}
+
 // GetCampaigns returns the campaigns owned by the given user.
 func GetCampaigns(uid int64) ([]Campaign, error) {
 	cs := []Campaign{}
-	err := db.Model(&User{Id: uid}).Related(&cs).Error
+	err := db.Where("user_id = ?", uid).Find(&cs).Error
 	if err != nil {
 		log.Error(err)
 	}
@@ -323,7 +435,7 @@ func GetCampaignSummaries(uid int64) (CampaignSummaries, error) {
 	overview := CampaignSummaries{}
 	cs := []CampaignSummary{}
 	// Get the basic campaign information
-	query := db.Table("campaigns").Where("user_id = ?", uid)
+	query := whereCampaignNotDeleted(db.Table("campaigns").Where("user_id = ?", uid))
 	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status")
 	err := query.Scan(&cs).Error
 	if err != nil {
@@ -346,12 +458,15 @@ func GetCampaignSummaries(uid int64) (CampaignSummaries, error) {
 // GetCampaignSummary gets the summary object for a campaign specified by the campaign ID
 func GetCampaignSummary(id int64, uid int64) (CampaignSummary, error) {
 	cs := CampaignSummary{}
-	query := db.Table("campaigns").Where("user_id = ? AND id = ?", uid, id)
+	query := whereCampaignNotDeleted(db.Table("campaigns").Where("user_id = ? AND id = ?", uid, id))
 	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status")
 	err := query.Scan(&cs).Error
 	if err != nil {
 		log.Error(err)
 		return cs, err
+	}
+	if cs.Id == 0 {
+		return cs, gorm.ErrRecordNotFound
 	}
 	s, err := getCampaignStats(cs.Id)
 	if err != nil {
@@ -409,7 +524,7 @@ func GetCampaign(id int64, uid int64) (Campaign, error) {
 // GetCampaignResults returns just the campaign results for the given campaign
 func GetCampaignResults(id int64, uid int64) (CampaignResults, error) {
 	cr := CampaignResults{}
-	err := db.Table("campaigns").Where("id=? and user_id=?", id, uid).Find(&cr).Error
+	err := whereCampaignNotDeleted(db.Table("campaigns").Where("id=? and user_id=?", id, uid)).Find(&cr).Error
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"campaign_id": id,
@@ -434,7 +549,8 @@ func GetCampaignResults(id int64, uid int64) (CampaignResults, error) {
 func GetQueuedCampaigns(t time.Time) ([]Campaign, error) {
 	cs := []Campaign{}
 	err := db.Where("launch_date <= ?", t).
-		Where("status = ?", CampaignQueued).Find(&cs).Error
+		Where("status = ?", CampaignQueued).
+		Where("deleted_at IS NULL").Find(&cs).Error
 	if err != nil {
 		log.Error(err)
 	}
@@ -450,6 +566,17 @@ func GetQueuedCampaigns(t time.Time) ([]Campaign, error) {
 
 // PostCampaign inserts a campaign and all associated records into the database.
 func PostCampaign(c *Campaign, uid int64) error {
+	return postCampaign(c, uid, false)
+}
+
+// PostCampaignDraft inserts a campaign that will not be sent until LaunchDraftCampaign.
+func PostCampaignDraft(c *Campaign, uid int64) error {
+	return postCampaign(c, uid, true)
+}
+
+// postCampaign inserts a campaign. When draft is true, status stays Draft and
+// no mail/delivery entries are marked processing.
+func postCampaign(c *Campaign, uid int64, draft bool) error {
 	err := c.Validate()
 	if err != nil {
 		return err
@@ -467,7 +594,9 @@ func PostCampaign(c *Campaign, uid int64) error {
 	if !c.SendByDate.IsZero() {
 		c.SendByDate = c.SendByDate.UTC()
 	}
-	if c.LaunchDate.Before(c.CreatedDate) || c.LaunchDate.Equal(c.CreatedDate) {
+	if draft {
+		c.Status = CampaignDraft
+	} else if c.LaunchDate.Before(c.CreatedDate) || c.LaunchDate.Equal(c.CreatedDate) {
 		c.Status = CampaignInProgress
 	}
 	// Check to make sure all the groups already exist
@@ -500,6 +629,10 @@ func PostCampaign(c *Campaign, uid int64) error {
 	}
 	c.Template = t
 	c.TemplateId = t.Id
+	c.ScenarioPackId = t.ScenarioPackId
+	c.Difficulty = t.Difficulty
+	c.Industries = t.Industries
+	c.Techniques = t.Techniques
 	// Check to make sure the page exists
 	p, err := GetPageByName(c.Page.Name, uid)
 	if err == gorm.ErrRecordNotFound {
@@ -513,28 +646,144 @@ func PostCampaign(c *Campaign, uid int64) error {
 	}
 	c.Page = p
 	c.PageId = p.Id
-	// Check to make sure the sending profile exists
-	s, err := GetSMTPByName(c.SMTP.Name, uid)
-	if err == gorm.ErrRecordNotFound {
-		log.WithFields(logrus.Fields{
-			"smtp": c.SMTP.Name,
-		}).Error("Sending profile does not exist")
-		return ErrSMTPNotFound
-	} else if err != nil {
-		log.Error(err)
-		return err
+	c.Channel = NormalizeChannel(c.Channel)
+	if c.IsHTTPChannel() {
+		var ch SendingChannel
+		if c.SendingChannel.Name != "" {
+			ch, err = GetSendingChannelByName(c.SendingChannel.Name, uid)
+		} else if c.SendingChannelId != 0 {
+			ch, err = GetSendingChannel(c.SendingChannelId, uid)
+		} else {
+			return ErrSendingChannelNotSpecified
+		}
+		if err == ErrSendingChannelNotFound || err == gorm.ErrRecordNotFound {
+			log.WithFields(logrus.Fields{
+				"channel": c.SendingChannel.Name,
+			}).Error("Sending channel does not exist")
+			return ErrSendingChannelNotFound
+		} else if err != nil {
+			log.Error(err)
+			return err
+		}
+		if ch.Channel != c.Channel {
+			return fmt.Errorf("sending channel type %s does not match campaign channel %s", ch.Channel, c.Channel)
+		}
+		c.SendingChannel = ch
+		c.SendingChannelId = ch.Id
+		c.SMTPId = 0
+		if strings.TrimSpace(c.Template.Text) == "" && strings.TrimSpace(c.Template.HTML) == "" {
+			return ErrTemplateTextRequired
+		}
+	} else {
+		// Check to make sure the sending profile exists
+		s, err := GetSMTPByName(c.SMTP.Name, uid)
+		if err == gorm.ErrRecordNotFound {
+			log.WithFields(logrus.Fields{
+				"smtp": c.SMTP.Name,
+			}).Error("Sending profile does not exist")
+			return ErrSMTPNotFound
+		} else if err != nil {
+			log.Error(err)
+			return err
+		}
+		c.SMTP = s
+		c.SMTPId = s.Id
+		c.SendingChannelId = 0
 	}
-	c.SMTP = s
-	c.SMTPId = s.Id
+	// Persist steps separately after the campaign row (avoid GORM association double-insert).
+	pendingSteps := c.Steps
+	c.Steps = nil
 	// Insert into the DB
 	err = db.Save(c).Error
 	if err != nil {
 		log.Error(err)
 		return err
 	}
+
+	// Persist multi-step definitions (or a single implicit step from template).
+	stepsToSave := pendingSteps
+	if len(stepsToSave) == 0 {
+		stepsToSave = []CampaignStep{{
+			StepIndex:    0,
+			TemplateId:   c.TemplateId,
+			Template:     c.Template,
+			PageId:       c.PageId,
+			Page:         c.Page,
+			DelayMinutes: 0,
+			Trigger:      StepTriggerAfterSent,
+		}}
+	} else {
+		for i := range stepsToSave {
+			st, err := GetTemplateByName(stepsToSave[i].Template.Name, uid)
+			if err == gorm.ErrRecordNotFound {
+				return ErrTemplateNotFound
+			} else if err != nil {
+				return err
+			}
+			stepsToSave[i].Template = st
+			stepsToSave[i].TemplateId = st.Id
+			stepsToSave[i].CampaignId = c.Id
+			stepsToSave[i].StepIndex = i
+			trig, err := normalizeTrigger(stepsToSave[i].Trigger)
+			if err != nil {
+				return err
+			}
+			stepsToSave[i].Trigger = trig
+			if stepsToSave[i].Page.Name != "" {
+				pg, err := GetPageByName(stepsToSave[i].Page.Name, uid)
+				if err == gorm.ErrRecordNotFound {
+					return ErrPageNotFound
+				} else if err != nil {
+					return err
+				}
+				stepsToSave[i].Page = pg
+				stepsToSave[i].PageId = pg.Id
+			} else if i == 0 {
+				stepsToSave[i].PageId = c.PageId
+				stepsToSave[i].Page = c.Page
+			}
+			if i == 0 {
+				stepsToSave[i].DelayMinutes = 0
+				c.Template = st
+				c.TemplateId = st.Id
+				c.ScenarioPackId = st.ScenarioPackId
+				c.Difficulty = st.Difficulty
+				c.Industries = st.Industries
+				c.Techniques = st.Techniques
+			}
+		}
+		// Ensure campaign template_id and tag snapshot match step 0 after resolving steps.
+		err = db.Model(c).UpdateColumns(map[string]interface{}{
+			"template_id":      c.TemplateId,
+			"scenario_pack_id": c.ScenarioPackId,
+			"difficulty":       c.Difficulty,
+			"industries":       c.Industries,
+			"techniques":       c.Techniques,
+		}).Error
+		if err != nil {
+			return err
+		}
+	}
+	for i := range stepsToSave {
+		stepsToSave[i].CampaignId = c.Id
+		stepsToSave[i].Id = 0
+		err = db.Save(&stepsToSave[i]).Error
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+	}
+	c.Steps = stepsToSave
+
 	err = AddEvent(&Event{Message: "Campaign Created"}, c.Id)
 	if err != nil {
 		log.Error(err)
+	}
+	if draft {
+		err = AddEvent(&Event{Message: "Campaign Saved as Draft"}, c.Id)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 	// Insert all the results
 	resultMap := make(map[string]bool)
@@ -552,17 +801,24 @@ func PostCampaign(c *Campaign, uid int64) error {
 			sendDate := c.generateSendDate(recipientIndex, totalRecipients)
 			r := &Result{
 				BaseRecipient: BaseRecipient{
-					Email:     t.Email,
-					Position:  t.Position,
-					FirstName: t.FirstName,
-					LastName:  t.LastName,
+					Email:      t.Email,
+					Position:   t.Position,
+					FirstName:  t.FirstName,
+					LastName:   t.LastName,
+					Phone:      t.Phone,
+					Department: t.Department,
 				},
 				Status:       StatusScheduled,
 				CampaignId:   c.Id,
 				UserId:       c.UserId,
 				SendDate:     sendDate,
 				Reported:     false,
+				Replied:      false,
 				ModifiedDate: c.CreatedDate,
+			}
+			if c.Channel == ChannelSMS && strings.TrimSpace(t.Phone) == "" {
+				tx.Rollback()
+				return ErrPhoneNotSpecified
 			}
 			err = r.GenerateId(tx)
 			if err != nil {
@@ -571,7 +827,7 @@ func PostCampaign(c *Campaign, uid int64) error {
 				return err
 			}
 			processing := false
-			if r.SendDate.Before(c.CreatedDate) || r.SendDate.Equal(c.CreatedDate) {
+			if !draft && (r.SendDate.Before(c.CreatedDate) || r.SendDate.Equal(c.CreatedDate)) {
 				r.Status = StatusSending
 				processing = true
 			}
@@ -587,21 +843,47 @@ func PostCampaign(c *Campaign, uid int64) error {
 			log.WithFields(logrus.Fields{
 				"email":     r.Email,
 				"send_date": sendDate,
-			}).Debug("creating maillog")
-			m := &MailLog{
-				UserId:     c.UserId,
-				CampaignId: c.Id,
-				RId:        r.RId,
-				SendDate:   sendDate,
-				Processing: processing,
-			}
-			err = tx.Save(m).Error
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					"email": t.Email,
-				}).Errorf("error creating maillog entry: %v", err)
-				tx.Rollback()
-				return err
+			}).Debug("creating delivery queue entry")
+			// Only enqueue step 0 when its trigger is after_sent (default).
+			if stepsToSave[0].Trigger == StepTriggerAfterSent {
+				if c.IsHTTPChannel() {
+					d := &DeliveryLog{
+						UserId:     c.UserId,
+						CampaignId: c.Id,
+						RId:        r.RId,
+						SendDate:   sendDate,
+						Processing: processing,
+						StepIndex:  0,
+						Sent:       false,
+						Channel:    c.Channel,
+					}
+					err = tx.Save(d).Error
+					if err != nil {
+						log.WithFields(logrus.Fields{
+							"email": t.Email,
+						}).Errorf("error creating delivery_log entry: %v", err)
+						tx.Rollback()
+						return err
+					}
+				} else {
+					m := &MailLog{
+						UserId:     c.UserId,
+						CampaignId: c.Id,
+						RId:        r.RId,
+						SendDate:   sendDate,
+						Processing: processing,
+						StepIndex:  0,
+						Sent:       false,
+					}
+					err = tx.Save(m).Error
+					if err != nil {
+						log.WithFields(logrus.Fields{
+							"email": t.Email,
+						}).Errorf("error creating maillog entry: %v", err)
+						tx.Rollback()
+						return err
+					}
+				}
 			}
 			recipientIndex++
 		}
@@ -609,12 +891,179 @@ func PostCampaign(c *Campaign, uid int64) error {
 	return tx.Commit().Error
 }
 
-// DeleteCampaign deletes the specified campaign
+// LaunchDraftCampaign promotes a draft campaign to Queued or In progress and
+// marks due mail/delivery logs for processing. Caller must invoke the worker
+// when the returned campaign status is CampaignInProgress.
+func LaunchDraftCampaign(id int64, uid int64) (*Campaign, error) {
+	c, err := GetCampaign(id, uid)
+	if err == gorm.ErrRecordNotFound {
+		return nil, ErrCampaignNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	if c.Status != CampaignDraft {
+		return nil, ErrCampaignNotDraft
+	}
+	now := time.Now().UTC()
+	// Immediate launch if unset or not in the future relative to now.
+	if c.LaunchDate.IsZero() || !c.LaunchDate.After(now) {
+		c.LaunchDate = now
+		c.Status = CampaignInProgress
+	} else {
+		c.Status = CampaignQueued
+	}
+	err = db.Model(&Campaign{}).Where("id=? AND user_id=?", id, uid).
+		UpdateColumns(map[string]interface{}{
+			"status":      c.Status,
+			"launch_date": c.LaunchDate,
+		}).Error
+	if err != nil {
+		return nil, err
+	}
+	// Activate results / queue entries that are due now.
+	var results []Result
+	err = db.Where("campaign_id=?", id).Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range results {
+		if c.Status == CampaignInProgress && (r.SendDate.Before(now) || r.SendDate.Equal(now) || r.SendDate.Before(c.LaunchDate) || r.SendDate.Equal(c.LaunchDate)) {
+			err = db.Model(&Result{}).Where("id=?", r.Id).UpdateColumn("status", StatusSending).Error
+			if err != nil {
+				return nil, err
+			}
+			err = db.Model(&MailLog{}).Where("r_id=?", r.RId).UpdateColumn("processing", true).Error
+			if err != nil {
+				return nil, err
+			}
+			err = db.Model(&DeliveryLog{}).Where("r_id=?", r.RId).UpdateColumn("processing", true).Error
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	_ = AddEvent(&Event{Message: "Campaign Launched"}, c.Id)
+	c, err = GetCampaign(id, uid)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// DeleteCampaign soft-deletes the campaign. Sending is stopped, the campaign is
+// marked complete, and deleted_at is set so it only appears in the trash.
 func DeleteCampaign(id int64) error {
 	log.WithFields(logrus.Fields{
 		"campaign_id": id,
-	}).Info("Deleting campaign")
-	// Delete all the campaign results
+	}).Info("Soft-deleting campaign")
+	c := Campaign{}
+	err := db.Where("id = ?", id).Find(&c).Error
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	err = db.Where("campaign_id=?", id).Delete(&MailLog{}).Error
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	err = db.Where("campaign_id=?", id).Delete(&DeliveryLog{}).Error
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	if c.Status != CampaignComplete {
+		c.CompletedDate = time.Now().UTC()
+		c.Status = CampaignComplete
+		err = db.Model(&Campaign{}).Where("id=?", id).
+			Select([]string{"completed_date", "status"}).UpdateColumns(&c).Error
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+	}
+	err = db.Delete(&Campaign{Id: id}).Error
+	if err != nil {
+		log.Error(err)
+	}
+	return err
+}
+
+// GetDeletedCampaignSummaries returns trash summaries for campaigns owned by uid.
+func GetDeletedCampaignSummaries(uid int64) (CampaignSummaries, error) {
+	overview := CampaignSummaries{}
+	cs := []CampaignSummary{}
+	query := db.Unscoped().Table("campaigns").Where("user_id = ? AND deleted_at IS NOT NULL", uid)
+	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status, deleted_at")
+	err := query.Scan(&cs).Error
+	if err != nil {
+		log.Error(err)
+		return overview, err
+	}
+	for i := range cs {
+		s, err := getCampaignStats(cs[i].Id)
+		if err != nil {
+			log.Error(err)
+			return overview, err
+		}
+		cs[i].Stats = s
+	}
+	overview.Total = int64(len(cs))
+	overview.Campaigns = cs
+	return overview, nil
+}
+
+// RestoreCampaign clears deleted_at. Sending is not resumed.
+func RestoreCampaign(id int64, uid int64) error {
+	c := Campaign{}
+	err := db.Unscoped().Where("id = ? AND user_id = ?", id, uid).Find(&c).Error
+	if err != nil {
+		return err
+	}
+	if c.DeletedAt == nil {
+		return ErrCampaignNotFound
+	}
+	log.WithFields(logrus.Fields{
+		"campaign_id": id,
+	}).Info("Restoring campaign from trash")
+	return db.Unscoped().Model(&Campaign{}).Where("id = ? AND user_id = ?", id, uid).
+		UpdateColumn("deleted_at", gorm.Expr("NULL")).Error
+}
+
+// PurgeCampaign permanently deletes a campaign that is already in the trash.
+func PurgeCampaign(id int64, uid int64) error {
+	c := Campaign{}
+	err := db.Unscoped().Where("id = ? AND user_id = ?", id, uid).Find(&c).Error
+	if err != nil {
+		return err
+	}
+	if c.DeletedAt == nil {
+		return ErrCampaignNotFound
+	}
+	return purgeCampaignRows(id)
+}
+
+// DeleteAllCampaignsForUser permanently deletes every campaign owned by uid,
+// including those already in the trash. Used when deleting a user account.
+func DeleteAllCampaignsForUser(uid int64) error {
+	ids := []int64{}
+	err := db.Unscoped().Model(&Campaign{}).Where("user_id = ?", uid).Pluck("id", &ids).Error
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		err = purgeCampaignRows(id)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func purgeCampaignRows(id int64) error {
+	log.WithFields(logrus.Fields{
+		"campaign_id": id,
+	}).Info("Purging campaign")
 	err := db.Where("campaign_id=?", id).Delete(&Result{}).Error
 	if err != nil {
 		log.Error(err)
@@ -630,8 +1079,17 @@ func DeleteCampaign(id int64) error {
 		log.Error(err)
 		return err
 	}
-	// Delete the campaign
-	err = db.Delete(&Campaign{Id: id}).Error
+	err = db.Where("campaign_id=?", id).Delete(&DeliveryLog{}).Error
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	err = db.Where("campaign_id=?", id).Delete(&CampaignStep{}).Error
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	err = db.Unscoped().Delete(&Campaign{Id: id}).Error
 	if err != nil {
 		log.Error(err)
 	}
@@ -650,6 +1108,11 @@ func CompleteCampaign(id int64, uid int64) error {
 	}
 	// Delete any maillogs still set to be sent out, preventing future emails
 	err = db.Where("campaign_id=?", id).Delete(&MailLog{}).Error
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	err = db.Where("campaign_id=?", id).Delete(&DeliveryLog{}).Error
 	if err != nil {
 		log.Error(err)
 		return err

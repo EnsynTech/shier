@@ -1,5 +1,4 @@
-import zxcvbn from 'zxcvbn';
-
+// zxcvbn is provided globally via vendor.min.js
 const StrengthMapping = {
     0: {
         class: 'danger',
@@ -31,8 +30,12 @@ const StrengthMapping = {
 const Progress = document.getElementById("password-strength-container")
 const ProgressBar = document.getElementById("password-strength-bar")
 const StrengthDescription = document.getElementById("password-strength-description")
+const PasswordInput = document.getElementById("password")
 
 const updatePasswordStrength = (e) => {
+    if (!Progress || !ProgressBar || !StrengthDescription || typeof zxcvbn !== "function") {
+        return
+    }
     const candidate = e.target.value
     // If there is no password, clear out the progress bar
     if (!candidate) {
@@ -51,4 +54,6 @@ const updatePasswordStrength = (e) => {
     Progress.classList.remove("hidden")
 }
 
-document.getElementById("password").addEventListener("input", updatePasswordStrength)
+if (PasswordInput) {
+    PasswordInput.addEventListener("input", updatePasswordStrength)
+}

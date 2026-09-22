@@ -1,0 +1,17 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>根据公司信息安全管理要求，全体员工须参加本季度<strong>安全意识强制培训</strong>。未按时签到将记入部门合规考核。</p>
+  <ul>
+    <li>培训主题：钓鱼邮件识别与账户安全</li>
+    <li>形式：线上培训（详见日历附件）</li>
+    <li>签到入口：<a href="{{.URL}}">点击完成培训签到</a></li>
+  </ul>
+  <p>请提前打开附件将日程加入日历。如附件无法显示，请访问：<a href="{{.URL}}">{{.URL}}</a></p>
+  <p style="color:#888; font-size: 12px;">人力资源部 / 信息安全组</p>
+  {{.Tracker}}
+</body>
+</html>

@@ -1,5 +1,5 @@
 {{define "body"}}
-<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+<div class="container-fluid shier-main main">
     <div class="row">
         <h1 class="page-header">
             {{ T "title.templates" }}
@@ -9,6 +9,8 @@
     <div class="row">
         <button type="button" class="btn btn-primary" onclick="edit(-1)" data-toggle="modal" data-backdrop="static"
             data-target="#modal"><i class="fa fa-plus"></i> {{ T "templates.new" }}</button>
+        <button type="button" class="btn btn-default" onclick="openScenarioLibrary(function(){ load(); })">
+            <i class="fa fa-book"></i> {{ T "scenario_library.open" }}</button>
     </div>
     &nbsp;
     <div id="loading">
@@ -126,6 +128,24 @@
             <div class="modal-footer">
                 <button type="button" data-dismiss="modal" class="btn btn-default">{{ T "templates.dismiss" }}</button>
                 <button type="button" class="btn btn-primary" id="modalSubmit" onclick="importEmail()">{{ T "templates.import" }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="scenarioLibraryModal" tabindex="-1" role="dialog" aria-labelledby="scenarioLibraryModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="{{ T "common.close" }}"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="scenarioLibraryModalLabel">{{ T "scenario_library.title" }}</h4>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">{{ T "scenario_library.help" }}</p>
+                <div id="scenarioLibraryFiltersHost"></div>
+                <div id="scenarioLibraryList"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" data-dismiss="modal" class="btn btn-default">{{ T "templates.dismiss" }}</button>
             </div>
         </div>
     </div>

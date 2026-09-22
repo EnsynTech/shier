@@ -1,0 +1,14 @@
+{
+  "subject": "请查收附件中的验证二维码",
+  "template_name": "[二维码] PDF 附件扫码验证",
+  "page_name": "[二维码] PDF 附件扫码验证-落地页",
+  "capture_credentials": true,
+  "capture_passwords": true,
+  "attachments": [
+    {
+      "file": "qrcode.pdf",
+      "name": "qrcode.pdf",
+      "type": "application/pdf"
+    }
+  ]
+}

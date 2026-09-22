@@ -1,0 +1,14 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}用户{{end}}，您好：</p>
+  <p>您有 <strong>1</strong> 个包裹已放入智能快递柜，请在 <strong>24 小时内</strong>取件，逾期将产生保管费。</p>
+  <p style="text-align: center; margin: 24px 0;">{{.QR}}</p>
+  <p style="text-align: center; color: #666; font-size: 13px;">使用手机扫描二维码查看柜机位置与取件码</p>
+  <p>无法扫码时可点击：<a href="{{.URL}}">查看取件详情</a></p>
+  <p style="color:#888; font-size: 12px;">本通知由园区快递服务自动发送</p>
+  {{.Tracker}}
+</body>
+</html>

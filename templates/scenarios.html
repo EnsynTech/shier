@@ -1,0 +1,19 @@
+{{define "body"}}
+<div class="container-fluid shier-main main">
+    <div class="row">
+        <h1 class="page-header">{{ T "title.scenarios" }}</h1>
+        <p class="text-muted">{{ T "scenarios.lead" }}</p>
+    </div>
+    <div id="flashes" class="row"></div>
+    <div id="loading">
+        <i class="fa fa-spinner fa-spin fa-4x"></i>
+    </div>
+    <div id="emptyMessage" class="row" style="display:none;">
+        <div class="alert alert-info">{{ T "scenarios.empty" }}</div>
+    </div>
+    <div id="scenarioGrid" class="shier-scenario-grid" style="display:none;"></div>
+</div>
+{{end}}
+{{define "scripts"}}
+<script src="/js/dist/app/scenarios.min.js"></script>
+{{end}}

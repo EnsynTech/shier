@@ -1,0 +1,7 @@
+{
+  "subject": "【请回复】本周五部门例会出席确认",
+  "template_name": "[会话] 会议出席请回复确认",
+  "page_name": "[会话] 会议出席确认-落地页",
+  "capture_credentials": false,
+  "capture_passwords": false
+}

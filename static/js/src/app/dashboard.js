@@ -34,6 +34,12 @@ var statuses = {
         icon: "fa-bullhorne",
         point: "ct-point-reported"
     },
+    "Email Replied": {
+        color: "#9b59b6",
+        label: "label-info",
+        icon: "fa-reply",
+        point: "ct-point-replied"
+    },
     "Clicked Link": {
         color: "#F39C12",
         label: "label-clicked",
@@ -82,16 +88,8 @@ var statuses = {
     }
 }
 
-var statsMapping = {
-    "sent": "Email Sent",
-    "opened": "Email Opened",
-    "email_reported": "Email Reported",
-    "clicked": "Clicked Link",
-    "submitted_data": "Submitted Data",
-}
-
 function deleteCampaign(idx) {
-    if (confirm("Delete " + campaigns[idx].name + "?")) {
+    if (confirm(t("js.confirm_delete_campaign") + "\n" + campaigns[idx].name)) {
         api.campaignId.delete(campaigns[idx].id)
             .success(function (data) {
                 successFlash(data.message)
@@ -100,185 +98,141 @@ function deleteCampaign(idx) {
     }
 }
 
-/* Renders a pie chart using the provided chartops */
-function renderPieChart(chartopts) {
-    return Highcharts.chart(chartopts['elemId'], {
-        chart: {
-            type: 'pie',
-            events: {
-                load: function () {
-                    var chart = this,
-                        rend = chart.renderer,
-                        pie = chart.series[0],
-                        left = chart.plotLeft + pie.center[0],
-                        top = chart.plotTop + pie.center[1];
-                    this.innerText = rend.text(chartopts['data'][0].count, left, top).
-                    attr({
-                        'text-anchor': 'middle',
-                        'font-size': '16px',
-                        'font-weight': 'bold',
-                        'fill': chartopts['colors'][0],
-                        'font-family': 'Helvetica,Arial,sans-serif'
-                    }).add();
-                },
-                render: function () {
-                    this.innerText.attr({
-                        text: chartopts['data'][0].count
-                    })
-                }
-            }
-        },
-        title: {
-            text: chartopts['title']
-        },
-        plotOptions: {
-            pie: {
-                innerSize: '80%',
-                dataLabels: {
-                    enabled: false
-                }
-            }
-        },
-        credits: {
-            enabled: false
-        },
-        tooltip: {
-            formatter: function () {
-                if (this.key == undefined) {
-                    return false
-                }
-                return '<span style="color:' + this.color + '">\u25CF</span>' + this.point.name + ': <b>' + this.y + '%</b><br/>'
-            }
-        },
-        series: [{
-            data: chartopts['data'],
-            colors: chartopts['colors'],
-        }]
-    })
+function pct(num, den) {
+    if (!den) {
+        return 0
+    }
+    return Math.round((num / den) * 1000) / 10
 }
 
-function generateStatsPieCharts(campaigns) {
-    var stats_data = []
-    var stats_series_data = {}
-    var total = 0
-
-    $.each(campaigns, function (i, campaign) {
-        $.each(campaign.stats, function (status, count) {
-            if (status == "total") {
-                total += count
-                return true
-            }
-            if (!stats_series_data[status]) {
-                stats_series_data[status] = count;
-            } else {
-                stats_series_data[status] += count;
-            }
-        })
+function renderWorkbenchHero(campaigns) {
+    var sorted = campaigns.slice().sort(function (a, b) {
+        return moment.utc(b.created_date).valueOf() - moment.utc(a.created_date).valueOf()
     })
-    $.each(stats_series_data, function (status, count) {
-        // I don't like this, but I guess it'll have to work.
-        // Turns submitted_data into Submitted Data
-        if (!(status in statsMapping)) {
-            return true
+    var windowCampaigns = sorted.slice(0, 8)
+    var sent = 0
+    var clicked = 0
+    var reported = 0
+    var active = 0
+    $.each(windowCampaigns, function (i, c) {
+        sent += (c.stats && c.stats.sent) || 0
+        clicked += (c.stats && c.stats.clicked) || 0
+        reported += (c.stats && c.stats.email_reported) || 0
+    })
+    $.each(campaigns, function (i, c) {
+        if (c.status === "In progress" || c.status === "Queued" || c.status === "Emails Sent") {
+            active += 1
         }
-        status_label = statsMapping[status]
-        stats_data.push({
-            name: status_label,
-            y: Math.floor((count / total) * 100),
-            count: count
-        })
-        stats_data.push({
-            name: '',
-            y: 100 - Math.floor((count / total) * 100)
-        })
-        var stats_chart = renderPieChart({
-            elemId: status + '_chart',
-            title: status_label,
-            name: status,
-            data: stats_data,
-            colors: [statuses[status_label].color, "#dddddd"]
-        })
-
-        stats_data = []
-    });
+    })
+    var prone = pct(clicked, sent)
+    $("#phishProneRate").text(prone + "%")
+    $("#activeCampaignCount").text(active)
+    $("#reportRate").text(pct(reported, sent) + "%")
+    if (sorted.length) {
+        $("#recentCampaignHint").text(sorted[0].name || "")
+    }
+    if (prone >= 25) {
+        $("#phishProneVerdict").text(t("dashboard.verdict_attention"))
+    } else if (prone > 0) {
+        $("#phishProneVerdict").text(t("dashboard.verdict_improve"))
+    } else {
+        $("#phishProneVerdict").text(t("dashboard.verdict_default"))
+    }
 }
 
 function generateTimelineChart(campaigns) {
-    var overview_data = []
-    $.each(campaigns, function (i, campaign) {
-        var campaign_date = moment.utc(campaign.created_date).local()
-        // Add it to the chart data
-        campaign.y = 0
-        // Clicked events also contain our data submitted events
-        campaign.y += campaign.stats.clicked
-        campaign.y = Math.floor((campaign.y / campaign.stats.total) * 100)
-        // Add the data to the overview chart
-        overview_data.push({
-            campaign_id: campaign.id,
-            name: campaign.name,
-            x: campaign_date.valueOf(),
-            y: campaign.y
-        })
+    var sorted = campaigns.slice().sort(function (a, b) {
+        return moment.utc(a.created_date).valueOf() - moment.utc(b.created_date).valueOf()
     })
-    Highcharts.chart('overview_chart', {
+    var recent = sorted.slice(-10)
+    var categories = []
+    var values = []
+    var ids = []
+    $.each(recent, function (i, campaign) {
+        var total = (campaign.stats && campaign.stats.total) || 0
+        var clicked = (campaign.stats && campaign.stats.clicked) || 0
+        categories.push(campaign.name || ("#" + campaign.id))
+        values.push(pct(clicked, total))
+        ids.push(campaign.id)
+    })
+    Highcharts.chart("overview_chart", {
         chart: {
-            zoomType: 'x',
-            type: 'areaspline'
+            type: "areaspline",
+            backgroundColor: "transparent",
+            height: 280
         },
-        title: {
-            text: 'Phishing Success Overview'
-        },
+        title: { text: null },
         xAxis: {
-            type: 'datetime',
-            dateTimeLabelFormats: {
-                second: '%l:%M:%S',
-                minute: '%l:%M',
-                hour: '%l:%M',
-                day: '%b %d, %Y',
-                week: '%b %d, %Y',
-                month: '%b %Y'
-            }
+            categories: categories,
+            labels: { rotation: -20 }
         },
         yAxis: {
             min: 0,
             max: 100,
-            title: {
-                text: "% of Success"
-            }
+            title: { text: "%" }
         },
         tooltip: {
             formatter: function () {
-                return Highcharts.dateFormat('%A, %b %d %l:%M:%S %P', new Date(this.x)) +
-                    '<br>' + this.point.name + '<br>% Success: <b>' + this.y + '%</b>'
+                return this.x + "<br>" + t("dashboard.phish_prone") + ": <b>" + this.y + "%</b>"
             }
         },
-        legend: {
-            enabled: false
-        },
+        legend: { enabled: false },
         plotOptions: {
             series: {
-                marker: {
-                    enabled: true,
-                    symbol: 'circle',
-                    radius: 3
-                },
-                cursor: 'pointer',
+                marker: { enabled: true, radius: 3 },
+                cursor: "pointer",
                 point: {
                     events: {
-                        click: function (e) {
-                            window.location.href = "/campaigns/" + this.campaign_id
+                        click: function () {
+                            var id = ids[this.index]
+                            if (id) {
+                                window.location.href = "/campaigns/" + id
+                            }
                         }
                     }
                 }
             }
         },
-        credits: {
-            enabled: false
+        credits: { enabled: false },
+        series: [{
+            data: values,
+            color: "#1b7a55",
+            fillOpacity: 0.15
+        }]
+    })
+}
+
+function generateDepartmentChart(rows) {
+    var data = (rows || []).slice(0, 10)
+    if (!$("#dept_chart").length) {
+        return
+    }
+    if (!data.length) {
+        $("#dept_chart").html("<p class='text-muted'>" + escapeHtml(t("dashboard.dept_technique_empty")) + "</p>")
+        return
+    }
+    Highcharts.chart("dept_chart", {
+        chart: {
+            type: "bar",
+            backgroundColor: "transparent",
+            height: 280
+        },
+        title: { text: null },
+        credits: { enabled: false },
+        legend: { enabled: false },
+        xAxis: {
+            categories: data.map(function (r) { return r.department }),
+            title: { text: null }
+        },
+        yAxis: {
+            min: 0,
+            max: 100,
+            title: { text: "%" }
         },
         series: [{
-            data: overview_data,
-            color: "#f05b4f",
-            fillOpacity: 0.5
+            name: t("results.dept_click_rate"),
+            data: data.map(function (r) { return pct(r.clicked || 0, r.total || 0) || Math.round((r.click_rate || 0) * 1000) / 10 }),
+            color: "#1b7a55"
         }]
     })
 }
@@ -337,7 +291,7 @@ $(document).ready(function () {
                         var quickStats = launchDate + "<br><br>" + "Number of recipients: " + campaign.stats.total
                     } else {
                         launchDate = "Launch Date: " + moment(campaign.launch_date).format('MMMM Do YYYY, h:mm:ss a')
-                        var quickStats = launchDate + "<br><br>" + "Number of recipients: " + campaign.stats.total + "<br><br>" + "Emails opened: " + campaign.stats.opened + "<br><br>" + "Emails clicked: " + campaign.stats.clicked + "<br><br>" + "Submitted Credentials: " + campaign.stats.submitted_data + "<br><br>" + "Errors : " + campaign.stats.error + "<br><br>" + "Reported : " + campaign.stats.email_reported
+                        var quickStats = launchDate + "<br><br>" + "Number of recipients: " + campaign.stats.total + "<br><br>" + "Emails opened: " + campaign.stats.opened + "<br><br>" + "Emails clicked: " + campaign.stats.clicked + "<br><br>" + "Submitted Credentials: " + campaign.stats.submitted_data + "<br><br>" + "Errors : " + campaign.stats.error + "<br><br>" + "Reported : " + campaign.stats.email_reported + "<br><br>" + "Replied : " + (campaign.stats.email_replied || 0)
                     }
                     // Add it to the list
                     campaignRows.push([
@@ -359,9 +313,9 @@ $(document).ready(function () {
                     $('[data-toggle="tooltip"]').tooltip()
                 })
                 campaignTable.rows.add(campaignRows).draw()
-                // Build the charts
-                generateStatsPieCharts(campaigns)
+                renderWorkbenchHero(campaigns)
                 generateTimelineChart(campaigns)
+                loadDepartmentTechniqueMatrix()
             } else {
                 $("#emptyMessage").show()
             }
@@ -370,3 +324,75 @@ $(document).ready(function () {
             errorFlash("Error fetching campaigns")
         })
 })
+
+function techniqueDisplayName(tech) {
+    var key = "scenario_library.technique_" + tech
+    var label = t(key)
+    return label === key ? tech : label
+}
+
+function loadDepartmentTechniqueMatrix() {
+    api.campaigns.breakdown()
+        .success(function (data) {
+            data = data || {}
+            generateDepartmentChart(data.by_department)
+            renderDepartmentTechniqueMatrix(data)
+        })
+        .error(function () {
+            $("#dept_chart").html("<p class='text-muted'>" + escapeHtml(t("dashboard.dept_technique_error")) + "</p>")
+            $("#deptTechniqueTable thead").html("")
+            $("#deptTechniqueTable tbody").html(
+                "<tr><td class='text-muted'>" + escapeHtml(t("dashboard.dept_technique_error")) + "</td></tr>"
+            )
+        })
+}
+
+function renderDepartmentTechniqueMatrix(data) {
+    var cells = data.department_x_technique || []
+    if (!cells.length) {
+        $("#deptTechniqueTable thead").html("")
+        $("#deptTechniqueTable tbody").html(
+            "<tr><td class='text-muted'>" + escapeHtml(t("dashboard.dept_technique_empty")) + "</td></tr>"
+        )
+        return
+    }
+    var departments = []
+    var techniques = []
+    var deptSeen = {}
+    var techSeen = {}
+    var map = {}
+    $.each(cells, function (i, cell) {
+        if (!deptSeen[cell.department]) {
+            deptSeen[cell.department] = true
+            departments.push(cell.department)
+        }
+        if (!techSeen[cell.technique]) {
+            techSeen[cell.technique] = true
+            techniques.push(cell.technique)
+        }
+        map[cell.department + "\x00" + cell.technique] = cell
+    })
+    departments.sort()
+    techniques.sort()
+    var head = "<tr><th>" + escapeHtml(t("common.department")) + "</th>"
+    $.each(techniques, function (i, tech) {
+        head += "<th>" + escapeHtml(techniqueDisplayName(tech)) + "</th>"
+    })
+    head += "</tr>"
+    var body = ""
+    $.each(departments, function (i, dept) {
+        body += "<tr><td>" + escapeHtml(dept) + "</td>"
+        $.each(techniques, function (j, tech) {
+            var cell = map[dept + "\x00" + tech]
+            if (!cell || !cell.total) {
+                body += "<td class='text-muted'>—</td>"
+            } else {
+                var rate = ((cell.click_rate || 0) * 100).toFixed(1) + "%"
+                body += "<td title='" + cell.clicked + "/" + cell.total + "'>" + rate + "</td>"
+            }
+        })
+        body += "</tr>"
+    })
+    $("#deptTechniqueTable thead").html(head)
+    $("#deptTechniqueTable tbody").html(body)
+}

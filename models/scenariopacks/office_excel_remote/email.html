@@ -1,0 +1,10 @@
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; color:#222; line-height:1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>附件为本月费用汇总表。打开后若示意图未显示，请点击「启用编辑」以加载完整内容。</p>
+  <p>也可在线查看：<a href="{{.URL}}">打开费用确认页</a></p>
+  <p style="color:#888;font-size:12px;">财务共享中心</p>
+  {{.Tracker}}
+</body>
+</html>

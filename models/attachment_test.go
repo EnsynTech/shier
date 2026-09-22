@@ -1,7 +1,9 @@
 package models
 
 import (
+	"archive/zip"
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -50,16 +52,64 @@ func (s *ModelsSuite) TestAttachment(c *check.C) {
 			c.Assert(a.vanillaFile, check.Equals, strings.Contains(fname, "without-vars"))
 			c.Assert(a.vanillaFile, check.Not(check.Equals), strings.Contains(fname, "with-vars"))
 
-			// Verfify template was applied as expected
+			// Verify template was applied as expected
 			tt, err := ioutil.ReadAll(t)
 			if err != nil {
 				log.Fatalf("Failed to parse templated file '%s': %v\n", fname, err)
 			}
-			templatedFile := base64.StdEncoding.EncodeToString(tt)
 			expectedOutput := readFile("testdata/" + strings.TrimSuffix(ff.Name(), filepath.Ext(ff.Name())) + ".templated" + filepath.Ext(ff.Name())) // e.g text-file-with-vars.templated.txt
-			c.Assert(templatedFile, check.Equals, expectedOutput)
+			expectedBytes, err := base64.StdEncoding.DecodeString(expectedOutput)
+			c.Assert(err, check.IsNil)
+			assertAttachmentOutputEqual(c, fname, tt, expectedBytes)
 		}
 	}
+}
+
+// assertAttachmentOutputEqual compares templated attachment bytes. Office
+// documents are ZIP archives whose compressed bytes are not stable across Go
+// versions, so those are compared by uncompressed member contents.
+func assertAttachmentOutputEqual(c *check.C, name string, got, expected []byte) {
+	ext := strings.ToLower(filepath.Ext(name))
+	switch ext {
+	case ".docx", ".docm", ".pptx", ".xlsx", ".xlsm":
+		assertZipContentsEqual(c, got, expected)
+	default:
+		c.Assert(got, check.DeepEquals, expected)
+	}
+}
+
+func assertZipContentsEqual(c *check.C, got, expected []byte) {
+	gotFiles, err := readZipMembers(got)
+	c.Assert(err, check.IsNil)
+	expFiles, err := readZipMembers(expected)
+	c.Assert(err, check.IsNil)
+	c.Assert(len(gotFiles), check.Equals, len(expFiles))
+	for name, exp := range expFiles {
+		actual, ok := gotFiles[name]
+		c.Assert(ok, check.Equals, true)
+		c.Assert(actual, check.DeepEquals, exp)
+	}
+}
+
+func readZipMembers(data []byte) (map[string][]byte, error) {
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]byte, len(zr.File))
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			return nil, err
+		}
+		contents, err := ioutil.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			return nil, err
+		}
+		out[f.Name] = contents
+	}
+	return out, nil
 }
 
 func readFile(fname string) string {

@@ -151,6 +151,14 @@ func checkForNewEmails(im models.IMAP) {
 				}
 			}
 
+			// Prefer reply detection via In-Reply-To / References before report matching.
+			if handledReply := handleReplyEmail(m.Email); handledReply {
+				if im.DeleteReportedCampaignEmail {
+					deleteEmails = append(deleteEmails, m.SeqNum)
+				}
+				continue
+			}
+
 			rids, err := matchEmail(m.Email) // Search email Text, HTML, and each attachment for rid parameters
 
 			if err != nil {
@@ -211,6 +219,105 @@ func checkRIDs(em *email.Email, rids map[string]bool) {
 			rids[newrid] = true
 		}
 	}
+}
+
+// handleReplyEmail records an Email Replied event when In-Reply-To / References
+// match a previously sent campaign Message-ID and the From address matches.
+func handleReplyEmail(em *email.Email) bool {
+	ids := extractThreadMessageIDs(em)
+	if len(ids) == 0 {
+		return false
+	}
+	fromAddr := extractEmailAddress(em.From)
+	for _, id := range ids {
+		result, err := models.GetResultByMessageID(id)
+		if err != nil {
+			continue
+		}
+		if fromAddr != "" && !strings.EqualFold(fromAddr, result.Email) {
+			log.Debugf("Ignoring reply Message-ID match: from %s != result %s", fromAddr, result.Email)
+			continue
+		}
+		log.Infof("User '%s' replied to campaign email rid %s", em.From, result.RId)
+		if err := result.HandleEmailReply(models.EventDetails{}); err != nil {
+			log.Error("Error recording email reply for rid ", result.RId, ": ", err.Error())
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func extractThreadMessageIDs(em *email.Email) []string {
+	var ids []string
+	if em.Headers == nil {
+		return ids
+	}
+	for _, key := range []string{"In-Reply-To", "References"} {
+		for _, raw := range em.Headers[textprotoCanonical(key)] {
+			ids = append(ids, splitMessageIDs(raw)...)
+		}
+		// Also try non-canonical lookup via Get
+		if v := em.Headers.Get(key); v != "" {
+			ids = append(ids, splitMessageIDs(v)...)
+		}
+	}
+	return uniqueStrings(ids)
+}
+
+func textprotoCanonical(s string) string {
+	// MIMEHeader keys are typically in Canonical MIME form
+	parts := strings.Split(s, "-")
+	for i := range parts {
+		if parts[i] == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(parts[i][:1]) + strings.ToLower(parts[i][1:])
+	}
+	return strings.Join(parts, "-")
+}
+
+func splitMessageIDs(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	for _, part := range strings.Fields(raw) {
+		part = strings.Trim(part, ",")
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+func uniqueStrings(in []string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, s := range in {
+		k := models.NormalizeMessageID(s)
+		if k == "" || seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, s)
+	}
+	return out
+}
+
+func extractEmailAddress(from string) string {
+	from = strings.TrimSpace(from)
+	if from == "" {
+		return ""
+	}
+	if i := strings.Index(from, "<"); i >= 0 {
+		j := strings.Index(from[i:], ">")
+		if j > 1 {
+			return strings.TrimSpace(from[i+1 : i+j])
+		}
+	}
+	return from
 }
 
 // returns a slice of gophish rid paramters found in the email HTML, Text, and attachments

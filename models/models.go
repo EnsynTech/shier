@@ -45,12 +45,16 @@ const (
 	CampaignCreated    string = "Created"
 	CampaignEmailsSent string = "Emails Sent"
 	CampaignComplete   string = "Completed"
+	// CampaignDraft is a configured campaign that must be explicitly launched
+	// (UI confirm or API confirm_token) before mail/delivery workers send.
+	CampaignDraft string = "Draft"
 	EventSent          string = "Email Sent"
 	EventSendingError  string = "Error Sending Email"
 	EventOpened        string = "Email Opened"
 	EventClicked       string = "Clicked Link"
 	EventDataSubmit    string = "Submitted Data"
 	EventReported      string = "Email Reported"
+	EventReplied       string = "Email Replied"
 	EventProxyRequest  string = "Proxied request"
 	StatusSuccess      string = "Success"
 	StatusQueued       string = "Queued"

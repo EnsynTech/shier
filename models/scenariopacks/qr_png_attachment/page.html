@@ -1,0 +1,26 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>扫码验证</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#fafafa;margin:0;padding:40px 16px}
+    .card{max-width:400px;margin:0 auto;background:#fff;border-radius:8px;padding:28px 24px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+    label{display:block;margin:14px 0 6px;font-size:13px} input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d9d9d9;border-radius:4px}
+    button{margin-top:20px;width:100%;padding:12px;background:#52c41a;color:#fff;border:0;border-radius:4px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>完成验证</h1>
+    <p>扫描附件二维码后，在此确认身份。</p>
+    <form method="POST">
+      <label for="name">姓名</label>
+      <input id="name" name="name" required>
+      <label for="phone">手机号</label>
+      <input id="phone" name="phone" type="tel" required>
+      <button type="submit">提交</button>
+    </form>
+  </div>
+</body>
+</html>

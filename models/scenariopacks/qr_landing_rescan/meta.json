@@ -1,0 +1,7 @@
+{
+  "subject": "请先打开链接，再扫码完成二次确认",
+  "template_name": "[二维码] 落地页二次扫码",
+  "page_name": "[二维码] 落地页二次扫码-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false
+}

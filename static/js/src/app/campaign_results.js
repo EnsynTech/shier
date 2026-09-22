@@ -1,6 +1,63 @@
 var map = null
 var doPoll = true;
 
+function resultCountsAsClicked(status) {
+    return status === "Clicked Link" || status === "Submitted Data"
+}
+
+function techniqueDisplay(tech) {
+    var key = "scenario_library.technique_" + tech
+    var label = t(key)
+    return label === key ? tech : label
+}
+
+function renderCampaignTagBadges(c) {
+    var host = $("#campaignTagBadges")
+    if (!host.length) {
+        return
+    }
+    var badges = ""
+    if (c.difficulty) {
+        badges += " <span class='label label-warning'>" + escapeHtml(t("results.difficulty")) +
+            " " + escapeHtml(String(c.difficulty)) + "</span>"
+    }
+    $.each(c.techniques || [], function (i, tech) {
+        badges += " <span class='label label-info'>" + escapeHtml(techniqueDisplay(tech)) + "</span>"
+    })
+    $.each(c.industries || [], function (i, ind) {
+        badges += " <span class='label label-default'>" + escapeHtml(ind) + "</span>"
+    })
+    host.html(badges)
+}
+
+function renderDepartmentBreakdown(results) {
+    var host = $("#departmentBreakdownTable tbody")
+    if (!host.length) {
+        return
+    }
+    var buckets = {}
+    $.each(results, function (i, result) {
+        var dept = (result.department || "").trim() || t("results.department_empty")
+        if (!buckets[dept]) {
+            buckets[dept] = { total: 0, clicked: 0 }
+        }
+        buckets[dept].total++
+        if (resultCountsAsClicked(result.status)) {
+            buckets[dept].clicked++
+        }
+    })
+    var rows = Object.keys(buckets).sort().map(function (dept) {
+        var b = buckets[dept]
+        var rate = b.total ? ((b.clicked / b.total) * 100).toFixed(1) + "%" : "0%"
+        return "<tr><td>" + escapeHtml(dept) + "</td><td>" + b.total + "</td><td>" +
+            b.clicked + "</td><td>" + rate + "</td></tr>"
+    }).join("")
+    if (!rows) {
+        rows = "<tr><td colspan='4' class='text-muted'>" + escapeHtml(t("results.department_empty_table")) + "</td></tr>"
+    }
+    host.html(rows)
+}
+
 // statuses is a helper map to point result statuses to ui classes
 var statuses = {
     "Email Sent": {
@@ -48,6 +105,12 @@ var statuses = {
         label: "label-info",
         icon: "fa-bullhorn",
         point: "ct-point-reported"
+    },
+    "Email Replied": {
+        color: "#9b59b6",
+        label: "label-info",
+        icon: "fa-reply",
+        point: "ct-point-replied"
     },
     "Error": {
         color: "#6c7a89",
@@ -103,6 +166,7 @@ var statusMapping = {
     "Clicked Link": "clicked",
     "Submitted Data": "submitted_data",
     "Email Reported": "reported",
+    "Email Replied": "replied",
 }
 
 // This is an underwhelming attempt at an enum
@@ -148,16 +212,15 @@ function deleteCampaign() {
             })
         }
     }).then(function (result) {
-        if(result.value){
+        if (result.value) {
             Swal.fire(
-                'Campaign Deleted!',
-                'This campaign has been deleted!',
-                'success'
-            );
+                t("js.campaign_moved_to_trash"),
+                t("js.campaign_moved_to_trash_detail"),
+                "success"
+            ).then(function () {
+                location.href = "/campaigns"
+            })
         }
-        $('button:contains("OK")').on('click', function () {
-            location.href = '/campaigns'
-        })
     })
 }
 
@@ -371,9 +434,10 @@ function renderTimeline(data) {
         "last_name": data[3],
         "email": data[4],
         "position": data[5],
-        "status": data[6],
-        "reported": data[7],
-        "send_date": data[8]
+        "department": data[6],
+        "status": data[7],
+        "reported": data[8],
+        "send_date": data[10]
     }
     results = '<div class="timeline col-sm-12 well well-lg">' +
         '<h6>Timeline for ' + escapeHtml(record.first_name) + ' ' + escapeHtml(record.last_name) +
@@ -571,6 +635,86 @@ var renderPieChart = function (chartopts) {
     })
 }
 
+function buildEmailSeriesData(results) {
+    var email_series_data = {}
+    Object.keys(statusMapping).forEach(function (k) {
+        email_series_data[k] = 0
+    })
+    $.each(results || [], function (i, result) {
+        email_series_data[result.status]++
+        if (result.reported) {
+            email_series_data["Email Reported"]++
+        }
+        if (result.replied) {
+            email_series_data["Email Replied"]++
+        }
+        var step = progressListing.indexOf(result.status)
+        for (var j = 0; j < step; j++) {
+            email_series_data[progressListing[j]]++
+        }
+    })
+    return email_series_data
+}
+
+function renderConversionVisuals(results) {
+    var total = (results || []).length || 1
+    var series = buildEmailSeriesData(results)
+    var steps = [
+        { key: "Email Sent", label: t("results.sent"), color: "#1abc9c", width: 100 },
+        { key: "Email Opened", label: t("results.opened"), color: "#f9bf3b", width: 88 },
+        { key: "Clicked Link", label: t("results.clicked"), color: "#F39C12", width: 72 },
+        { key: "Submitted Data", label: t("results.submitted"), color: "#f05b4f", width: 56 }
+    ]
+    var html = ""
+    $.each(steps, function (i, step) {
+        var count = series[step.key] || 0
+        var rate = Math.round((count / total) * 1000) / 10
+        html += "<div class='shier-funnel-step' style='width:" + step.width + "%;background:" + step.color + ";'>" +
+            "<span>" + escapeHtml(step.label) + " · " + count + "</span>" +
+            "<span class='pct'>" + rate + "%</span></div>"
+    })
+    $("#resultsFunnel").html(html)
+
+    var sent = series["Email Sent"] || 0
+    var clicked = series["Clicked Link"] || 0
+    var submitted = series["Submitted Data"] || 0
+    var reported = series["Email Reported"] || 0
+    var prone = sent ? Math.round((clicked / sent) * 1000) / 10 : 0
+    $("#verdictPhishProne").text(prone + "%")
+    $("#verdictClicked").text(clicked)
+    $("#verdictSubmitted").text(submitted)
+    $("#verdictReported").text(reported)
+    if (prone >= 25) {
+        $("#verdictText").text(t("dashboard.verdict_attention"))
+    } else if (prone > 0) {
+        $("#verdictText").text(t("dashboard.verdict_improve"))
+    } else {
+        $("#verdictText").text(t("dashboard.verdict_default"))
+    }
+}
+
+function ensureResultsMap() {
+    if (map) {
+        return
+    }
+    map = new Datamap({
+        element: document.getElementById("resultsMap"),
+        responsive: true,
+        fills: {
+            defaultFill: "#ffffff",
+            point: "#283F50"
+        },
+        geographyConfig: {
+            highlightFillColor: "#1abc9c",
+            borderColor: "#283F50"
+        },
+        bubblesConfig: {
+            borderColor: "#283F50"
+        }
+    })
+    updateMap(campaign.results || [])
+}
+
 /* Updates the bubbles on the map
 
 @param {campaign.result[]} results - The campaign results to process
@@ -653,37 +797,26 @@ function poll() {
                 data: timeline_series_data
             })
             /* Update the results donut chart */
-            var email_series_data = {}
-            // Load the initial data
-            Object.keys(statusMapping).forEach(function (k) {
-                email_series_data[k] = 0
-            });
-            $.each(campaign.results, function (i, result) {
-                email_series_data[result.status]++;
-                if (result.reported) {
-                    email_series_data['Email Reported']++
-                }
-                // Backfill status values
-                var step = progressListing.indexOf(result.status)
-                for (var i = 0; i < step; i++) {
-                    email_series_data[progressListing[i]]++
-                }
-            })
+            var email_series_data = buildEmailSeriesData(campaign.results)
+            renderConversionVisuals(campaign.results)
+            renderDepartmentBreakdown(campaign.results || [])
+            // Keep legacy chart ids in sync if Highcharts instances exist
             $.each(email_series_data, function (status, count) {
-                var email_data = []
                 if (!(status in statusMapping)) {
                     return true
                 }
-                email_data.push({
+                var chart = $("#" + statusMapping[status] + "_chart").highcharts()
+                if (!chart) {
+                    return true
+                }
+                var email_data = [{
                     name: status,
                     y: Math.floor((count / campaign.results.length) * 100),
                     count: count
-                })
-                email_data.push({
+                }, {
                     name: '',
                     y: 100 - Math.floor((count / campaign.results.length) * 100)
-                })
-                var chart = $("#" + statusMapping[status] + "_chart").highcharts()
+                }]
                 chart.series[0].update({
                     data: email_data
                 })
@@ -697,9 +830,11 @@ function poll() {
                 var rid = rowData[0]
                 $.each(campaign.results, function (j, result) {
                     if (result.id == rid) {
-                        rowData[8] = moment(result.send_date).format('MMMM Do YYYY, h:mm:ss a')
-                        rowData[7] = result.reported
-                        rowData[6] = result.status
+                        rowData[10] = moment(result.send_date).format('MMMM Do YYYY, h:mm:ss a')
+                        rowData[9] = result.replied
+                        rowData[8] = result.reported
+                        rowData[7] = result.status
+                        rowData[6] = escapeHtml(result.department || "")
                         resultsTable.row(i).data(rowData)
                         if (row.child.isShown()) {
                             $(row.node()).find("#caret").removeClass("fa-caret-right")
@@ -721,12 +856,11 @@ function poll() {
 
 function load() {
     campaign.id = window.location.pathname.split('/').slice(-1)[0]
-    var use_map = JSON.parse(localStorage.getItem('gophish.use_map'))
     api.campaignId.results(campaign.id)
         .success(function (c) {
             campaign = c
             if (campaign) {
-                $("title").text(c.name + " - Gophish")
+                $("title").text(c.name + " - " + t("brand.name"))
                 $("#loading").hide()
                 $("#campaignResults").show()
                 // Set the title
@@ -753,6 +887,8 @@ function load() {
                 // Setup the results table
                 resultsTable = $("#resultsTable").DataTable({
                     destroy: true,
+                    autoWidth: false,
+                    scrollX: true,
                     "order": [
                         [2, "asc"]
                     ],
@@ -762,15 +898,15 @@ function load() {
                         }, {
                             className: "details-control",
                             "targets": [1]
-                        }, {
+                        },                         {
                             "visible": false,
-                            "targets": [0, 8]
+                            "targets": [0, 10]
                         },
                         {
                             "render": function (data, type, row) {
-                                return createStatusLabel(data, row[8])
+                                return createStatusLabel(data, row[10])
                             },
-                            "targets": [6]
+                            "targets": [7]
                         },
                         {
                             className: "text-center",
@@ -783,16 +919,25 @@ function load() {
                                 }
                                 return reported
                             },
-                            "targets": [7]
+                            "targets": [8]
+                        },
+                        {
+                            className: "text-center",
+                            "render": function (replied, type, row) {
+                                if (type == "display") {
+                                    if (replied) {
+                                        return "<i class='fa fa-check-circle text-center text-success'></i>"
+                                    }
+                                    return "<i class='fa fa-times-circle text-center text-muted'></i>"
+                                }
+                                return replied
+                            },
+                            "targets": [9]
                         }
                     ]
                 });
                 resultsTable.clear();
-                var email_series_data = {}
                 var timeline_series_data = []
-                Object.keys(statusMapping).forEach(function (k) {
-                    email_series_data[k] = 0
-                });
                 $.each(campaign.results, function (i, result) {
                     resultsTable.row.add([
                         result.id,
@@ -801,21 +946,17 @@ function load() {
                         escapeHtml(result.last_name) || "",
                         escapeHtml(result.email) || "",
                         escapeHtml(result.position) || "",
+                        escapeHtml(result.department) || "",
                         result.status,
                         result.reported,
+                        result.replied,
                         moment(result.send_date).format('MMMM Do YYYY, h:mm:ss a')
                     ])
-                    email_series_data[result.status]++;
-                    if (result.reported) {
-                        email_series_data['Email Reported']++
-                    }
-                    // Backfill status values
-                    var step = progressListing.indexOf(result.status)
-                    for (var i = 0; i < step; i++) {
-                        email_series_data[progressListing[i]]++
-                    }
                 })
                 resultsTable.draw();
+                renderCampaignTagBadges(campaign)
+                renderDepartmentBreakdown(campaign.results || [])
+                renderConversionVisuals(campaign.results || [])
                 // Setup tooltips
                 $('[data-toggle="tooltip"]').tooltip()
                 // Setup the individual timelines
@@ -855,48 +996,19 @@ function load() {
                 renderTimelineChart({
                     data: timeline_series_data
                 })
-                $.each(email_series_data, function (status, count) {
-                    var email_data = []
-                    if (!(status in statusMapping)) {
-                        return true
-                    }
-                    email_data.push({
-                        name: status,
-                        y: Math.floor((count / campaign.results.length) * 100),
-                        count: count
-                    })
-                    email_data.push({
-                        name: '',
-                        y: 100 - Math.floor((count / campaign.results.length) * 100)
-                    })
-                    var chart = renderPieChart({
-                        elemId: statusMapping[status] + '_chart',
-                        title: status,
-                        name: status,
-                        data: email_data,
-                        colors: [statuses[status].color, '#dddddd']
-                    })
-                })
 
-                if (use_map) {
-                    $("#resultsMapContainer").show()
-                    map = new Datamap({
-                        element: document.getElementById("resultsMap"),
-                        responsive: true,
-                        fills: {
-                            defaultFill: "#ffffff",
-                            point: "#283F50"
-                        },
-                        geographyConfig: {
-                            highlightFillColor: "#1abc9c",
-                            borderColor: "#283F50"
-                        },
-                        bubblesConfig: {
-                            borderColor: "#283F50"
-                        }
-                    });
-                }
-                updateMap(campaign.results)
+                $("#resultsMapContainer").hide()
+                $("#toggleResultsMap").off("click").on("click", function () {
+                    var $container = $("#resultsMapContainer")
+                    if ($container.is(":visible")) {
+                        $container.hide()
+                        $(this).text(t("results.map_toggle"))
+                    } else {
+                        $container.show()
+                        ensureResultsMap()
+                        $(this).text(t("results.map_hide"))
+                    }
+                })
             }
         })
         .error(function () {

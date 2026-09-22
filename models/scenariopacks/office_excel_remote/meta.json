@@ -1,0 +1,14 @@
+{
+  "subject": "【财务】请查收本月费用汇总表",
+  "template_name": "[Office] Excel 远程图片追踪表",
+  "page_name": "[Office] Excel 远程图片追踪表-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false,
+  "attachments": [
+    {
+      "file": "workbook.xlsx",
+      "name": "monthly-expense.xlsx",
+      "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    }
+  ]
+}

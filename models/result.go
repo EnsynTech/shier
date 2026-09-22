@@ -33,8 +33,10 @@ type Result struct {
 	Latitude     float64   `json:"latitude"`
 	Longitude    float64   `json:"longitude"`
 	SendDate     time.Time `json:"send_date"`
-	Reported     bool      `json:"reported" sql:"not null"`
-	ModifiedDate time.Time `json:"modified_date"`
+	Reported       bool      `json:"reported" sql:"not null"`
+	Replied        bool      `json:"replied" sql:"not null"`
+	LastEmailStep  int       `json:"last_email_step"`
+	ModifiedDate   time.Time `json:"modified_date"`
 	BaseRecipient
 }
 
@@ -54,12 +56,28 @@ func (r *Result) createEvent(status string, details interface{}) (*Event, error)
 // HandleEmailSent updates a Result to indicate that the email has been
 // successfully sent to the remote SMTP server
 func (r *Result) HandleEmailSent() error {
-	event, err := r.createEvent(EventSent, nil)
+	return r.HandleMessageSent("")
+}
+
+// HandleMessageSent records a successful outbound message for any channel.
+// When channel is non-empty it is stored in event details for timeline filtering.
+func (r *Result) HandleMessageSent(channel string) error {
+	var details interface{}
+	if channel != "" {
+		details = map[string]string{"channel": channel}
+	}
+	event, err := r.createEvent(EventSent, details)
 	if err != nil {
 		return err
 	}
 	r.SendDate = event.Time
-	r.Status = EventSent
+	// Do not downgrade funnel status when later multi-step emails are sent.
+	switch r.Status {
+	case EventOpened, EventClicked, EventDataSubmit:
+		// keep existing status
+	default:
+		r.Status = EventSent
+	}
 	r.ModifiedDate = event.Time
 	return db.Save(r).Error
 }
@@ -145,6 +163,26 @@ func (r *Result) HandleEmailReport(details EventDetails) error {
 	r.Reported = true
 	r.ModifiedDate = event.Time
 	return db.Save(r).Error
+}
+
+// HandleEmailReply updates a Result when the recipient replies to a campaign email.
+// Like Reported, this does not overwrite the funnel Status.
+// On first reply, queues the next on_reply campaign step when configured.
+func (r *Result) HandleEmailReply(details EventDetails) error {
+	if r.Replied {
+		r.ModifiedDate = time.Now().UTC()
+		return db.Save(r).Error
+	}
+	event, err := r.createEvent(EventReplied, details)
+	if err != nil {
+		return err
+	}
+	r.Replied = true
+	r.ModifiedDate = event.Time
+	if err := db.Save(r).Error; err != nil {
+		return err
+	}
+	return enqueueOnReplySteps(r)
 }
 
 // UpdateGeo updates the latitude and longitude of the result in

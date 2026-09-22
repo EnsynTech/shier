@@ -45,8 +45,8 @@ func WithMailer(m mailer.Mailer) func(*DefaultWorker) error {
 	}
 }
 
-// processCampaigns loads maillogs scheduled to be sent before the provided
-// time and sends them to the mailer.
+// processCampaigns loads maillogs and delivery logs scheduled to be sent
+// before the provided time and sends them.
 func (w *DefaultWorker) processCampaigns(t time.Time) error {
 	ms, err := models.GetQueuedMailLogs(t.UTC())
 	if err != nil {
@@ -96,6 +96,53 @@ func (w *DefaultWorker) processCampaigns(t time.Time) error {
 			w.mailer.Queue(msc)
 		}(cid, msc)
 	}
+
+	if err := w.processDeliveryLogs(t); err != nil {
+		return err
+	}
+	return nil
+}
+
+// processDeliveryLogs sends queued SMS/IM HTTP deliveries.
+func (w *DefaultWorker) processDeliveryLogs(t time.Time) error {
+	ds, err := models.GetQueuedDeliveryLogs(t.UTC())
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	if len(ds) == 0 {
+		return nil
+	}
+	err = models.LockDeliveryLogs(ds, true)
+	if err != nil {
+		return err
+	}
+	campaignCache := make(map[int64]models.Campaign)
+	for _, d := range ds {
+		c, ok := campaignCache[d.CampaignId]
+		if !ok {
+			c, err = models.GetCampaignDeliveryContext(d.CampaignId, d.UserId)
+			if err != nil {
+				log.Error(err)
+				_ = d.Error(err)
+				continue
+			}
+			campaignCache[c.Id] = c
+		}
+		_ = d.CacheCampaign(&c)
+		if c.Status == models.CampaignQueued {
+			if err := c.UpdateStatus(models.CampaignInProgress); err != nil {
+				log.Error(err)
+			}
+		}
+		go func(d *models.DeliveryLog) {
+			if err := d.Process(); err != nil {
+				log.WithFields(logrus.Fields{
+					"rid": d.RId,
+				}).Warn(err)
+			}
+		}(d)
+	}
 	return nil
 }
 
@@ -115,6 +162,37 @@ func (w *DefaultWorker) Start() {
 
 // LaunchCampaign starts a campaign
 func (w *DefaultWorker) LaunchCampaign(c models.Campaign) {
+	if c.IsHTTPChannel() {
+		ds, err := models.GetDeliveryLogsByCampaign(c.Id)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		models.LockDeliveryLogs(ds, true)
+		currentTime := time.Now().UTC()
+		campaignCtx, err := models.GetCampaignDeliveryContext(c.Id, c.UserId)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		for _, d := range ds {
+			if d.Sent || d.SendDate.After(currentTime) {
+				d.Unlock()
+				continue
+			}
+			err = d.CacheCampaign(&campaignCtx)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			go func(d *models.DeliveryLog) {
+				if err := d.Process(); err != nil {
+					log.Warn(err)
+				}
+			}(d)
+		}
+		return
+	}
 	ms, err := models.GetMailLogsByCampaign(c.Id)
 	if err != nil {
 		log.Error(err)
@@ -133,7 +211,7 @@ func (w *DefaultWorker) LaunchCampaign(c models.Campaign) {
 	for _, m := range ms {
 		// Only send the emails scheduled to be sent for the past minute to
 		// respect the campaign scheduling options
-		if m.SendDate.After(currentTime) {
+		if m.Sent || m.SendDate.After(currentTime) {
 			m.Unlock()
 			continue
 		}

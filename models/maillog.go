@@ -17,6 +17,7 @@ import (
 	"github.com/gophish/gophish/config"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/mailer"
+	"github.com/jinzhu/gorm"
 )
 
 // MaxSendAttempts set to 8 since we exponentially backoff after each failed send
@@ -40,6 +41,9 @@ type MailLog struct {
 	SendDate    time.Time `json:"send_date"`
 	SendAttempt int       `json:"send_attempt"`
 	Processing  bool      `json:"-"`
+	StepIndex   int       `json:"step_index"`
+	MessageID   string    `json:"message_id"`
+	Sent        bool      `json:"sent"`
 
 	cachedCampaign *Campaign
 }
@@ -116,8 +120,8 @@ func (m *MailLog) Error(e error) error {
 	return err
 }
 
-// Success deletes the maillog from the database and updates the underlying
-// campaign result.
+// Success marks the maillog as sent, persists Message-ID, updates the result,
+// and enqueues the next after_sent campaign step when configured.
 func (m *MailLog) Success() error {
 	r, err := GetResult(m.RId)
 	if err != nil {
@@ -127,8 +131,50 @@ func (m *MailLog) Success() error {
 	if err != nil {
 		return err
 	}
-	err = db.Delete(m).Error
-	return err
+	r.LastEmailStep = m.StepIndex
+	if err := db.Model(&r).UpdateColumn("last_email_step", m.StepIndex).Error; err != nil {
+		return err
+	}
+	m.Sent = true
+	m.Processing = false
+	err = db.Save(m).Error
+	if err != nil {
+		return err
+	}
+	return enqueueNextCampaignStep(m)
+}
+
+// enqueueNextCampaignStep creates a maillog for the next after_sent step.
+func enqueueNextCampaignStep(m *MailLog) error {
+	nextIndex := m.StepIndex + 1
+	step, err := GetCampaignStep(m.CampaignId, nextIndex)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil
+		}
+		return err
+	}
+	if step.Trigger != StepTriggerAfterSent {
+		return nil
+	}
+	exists, err := mailLogExistsForStep(m.RId, nextIndex)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	delay := time.Duration(step.DelayMinutes) * time.Minute
+	next := &MailLog{
+		UserId:     m.UserId,
+		CampaignId: m.CampaignId,
+		RId:        m.RId,
+		SendDate:   time.Now().UTC().Add(delay),
+		StepIndex:  nextIndex,
+		Sent:       false,
+		Processing: false,
+	}
+	return db.Save(next).Error
 }
 
 // GetDialer returns a dialer based on the maillog campaign's SMTP configuration
@@ -182,7 +228,12 @@ func (m *MailLog) Generate(msg *gomail.Message) error {
 		c = &campaign
 	}
 
-	f, err := mail.ParseAddress(c.Template.EnvelopeSender)
+	tmpl, err := loadTemplateForMailLog(m.CampaignId, m.StepIndex, c.Template)
+	if err != nil {
+		return err
+	}
+
+	f, err := mail.ParseAddress(tmpl.EnvelopeSender)
 	if err != nil {
 		f, err = mail.ParseAddress(c.SMTP.FromAddress)
 		if err != nil {
@@ -208,6 +259,19 @@ func (m *MailLog) Generate(msg *gomail.Message) error {
 		return err
 	}
 	msg.SetHeader("Message-Id", messageID)
+	m.MessageID = messageID
+	if err := db.Model(m).UpdateColumn("message_id", messageID).Error; err != nil {
+		return err
+	}
+
+	// Thread later steps under the first outbound message.
+	if m.StepIndex > 0 {
+		rootID, err := GetRootMessageID(m.RId)
+		if err == nil && rootID != "" {
+			msg.SetHeader("In-Reply-To", rootID)
+			msg.SetHeader("References", rootID)
+		}
+	}
 
 	// Parse the customHeader templates
 	for _, header := range c.SMTP.Headers {
@@ -226,37 +290,40 @@ func (m *MailLog) Generate(msg *gomail.Message) error {
 	}
 
 	// Parse remaining templates
-	subject, err := ExecuteTemplate(c.Template.Subject, ptx)
+	subject, err := ExecuteTemplate(tmpl.Subject, ptx)
 
 	if err != nil {
 		log.Warn(err)
 	}
-	// don't set Subject header if the subject is empty
 	if subject != "" {
+		if m.StepIndex >= 1 {
+			subject = ensureReplySubject(subject)
+		}
 		msg.SetHeader("Subject", subject)
 	}
 
 	msg.SetHeader("To", r.FormatAddress())
-	if c.Template.Text != "" {
-		text, err := ExecuteTemplate(c.Template.Text, ptx)
+	if tmpl.Text != "" {
+		text, err := ExecuteTemplate(tmpl.Text, ptx)
 		if err != nil {
 			log.Warn(err)
 		}
 		msg.SetBody("text/plain", text)
 	}
-	if c.Template.HTML != "" {
-		html, err := ExecuteTemplate(c.Template.HTML, ptx)
+	if tmpl.HTML != "" {
+		html, err := ExecuteTemplate(tmpl.HTML, ptx)
 		if err != nil {
 			log.Warn(err)
 		}
-		if c.Template.Text == "" {
+		if tmpl.Text == "" {
 			msg.SetBody("text/html", html)
 		} else {
 			msg.AddAlternative("text/html", html)
 		}
 	}
+	embedQRCode(msg, tmpl.HTML, tmpl.Text, ptx)
 	// Attach the files
-	for _, a := range c.Template.Attachments {
+	for _, a := range tmpl.Attachments {
 		addAttachment(msg, a, ptx)
 	}
 
@@ -266,12 +333,64 @@ func (m *MailLog) Generate(msg *gomail.Message) error {
 // GetQueuedMailLogs returns the mail logs that are queued up for the given minute.
 func GetQueuedMailLogs(t time.Time) ([]*MailLog, error) {
 	ms := []*MailLog{}
-	err := db.Where("send_date <= ? AND processing = ?", t, false).
+	err := db.Where("send_date <= ? AND processing = ? AND sent = ?", t, false, false).
 		Find(&ms).Error
 	if err != nil {
 		log.Warn(err)
 	}
 	return ms, err
+}
+
+// GetRootMessageID returns the Message-ID of step 0 for a recipient.
+func GetRootMessageID(rid string) (string, error) {
+	m := MailLog{}
+	err := db.Where("r_id = ? AND step_index = ? AND message_id != ?", rid, 0, "").
+		Order("id asc").First(&m).Error
+	if err != nil {
+		return "", err
+	}
+	return m.MessageID, nil
+}
+
+// ensureReplySubject prefixes Re: when the subject is not already a reply-style subject.
+func ensureReplySubject(subject string) string {
+	trimmed := strings.TrimSpace(subject)
+	lower := strings.ToLower(trimmed)
+	prefixes := []string{"re:", "回复:", "答复:", "回覆:"}
+	for _, p := range prefixes {
+		if strings.HasPrefix(lower, strings.ToLower(p)) {
+			return subject
+		}
+	}
+	return "Re: " + trimmed
+}
+
+// NormalizeMessageID strips whitespace and angle brackets for comparison.
+func NormalizeMessageID(id string) string {
+	id = strings.TrimSpace(id)
+	id = strings.Trim(id, "<>")
+	return strings.ToLower(id)
+}
+
+// GetResultByMessageID finds a result whose outbound mail used the given Message-ID.
+func GetResultByMessageID(messageID string) (*Result, error) {
+	norm := NormalizeMessageID(messageID)
+	if norm == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	m := MailLog{}
+	bracketed := "<" + norm + ">"
+	err := db.Where("message_id = ? OR message_id = ? OR lower(message_id) = ? OR lower(message_id) = ?",
+		messageID, bracketed, strings.ToLower(messageID), strings.ToLower(bracketed)).
+		First(&m).Error
+	if err != nil {
+		return nil, err
+	}
+	r, err := GetResult(m.RId)
+	if err != nil {
+		return nil, err
+	}
+	return &r, nil
 }
 
 // GetMailLogsByCampaign returns all of the mail logs for a given campaign.
@@ -344,10 +463,19 @@ func shouldEmbedAttachment(name string) bool {
 
 // Add an attachment to a gomail message, with the Content-Disposition
 // header set to inline or attachment depending on its file extension.
+// Placeholder names qrcode.png / qrcode.pdf are replaced with per-recipient QR content.
 func addAttachment(msg *gomail.Message, a Attachment, ptx PhishingTemplateContext) {
 	copyFunc := gomail.SetCopyFunc(func(c Attachment) func(w io.Writer) error {
 		return func(w io.Writer) error {
-			reader, err := a.ApplyTemplate(ptx)
+			if isQRPlaceholderAttachment(c.Name) {
+				content, err := resolveQRAttachmentContent(c.Name, ptx)
+				if err != nil {
+					return err
+				}
+				_, err = w.Write(content)
+				return err
+			}
+			reader, err := c.ApplyTemplate(ptx)
 			if err != nil {
 				return err
 			}
@@ -355,6 +483,11 @@ func addAttachment(msg *gomail.Message, a Attachment, ptx PhishingTemplateContex
 			return err
 		}
 	}(a))
+	// QR placeholders are always downloadable attachments (not CID embeds).
+	if isQRPlaceholderAttachment(a.Name) {
+		msg.Attach(a.Name, copyFunc)
+		return
+	}
 	if shouldEmbedAttachment(a.Name) {
 		msg.Embed(a.Name, copyFunc)
 	} else {

@@ -13,8 +13,7 @@
     <title>{{ .Title }} - {{ T "brand.title_suffix" }}</title>
 
     <link href="/css/dist/gophish.css" rel="stylesheet" type="text/css">
-    <link href='https://fonts.googleapis.com/css?family=Roboto:700,500' rel='stylesheet' type='text/css'>
-    <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,300,600,700' rel='stylesheet' type='text/css'>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
         window.GophishLang = {{ .Lang }};
         window.GophishTranslations = {{ .TranslationsJSON }};
@@ -36,53 +35,88 @@
     </script>
 </head>
 
-<body>
-    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+<body class="shier-app">
+    <div class="navbar navbar-default navbar-fixed-top shier-topnav" role="navigation">
         <div class="container-fluid">
             <div class="navbar-header">
-                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#shier-navbar-collapse">
                     <span class="sr-only">{{ T "common.toggle_nav" }}</span>
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                <img class="navbar-logo" src="/images/logo_inv_small.png" />
-                <a class="navbar-brand" href="/">&nbsp;{{ T "brand.name" }}</a>
+                <a class="navbar-brand shier-brand" href="/">
+                    <img class="navbar-logo shier-brand-logo" src="/images/logo_small.png" alt="{{ T "brand.name" }}">
+                    <span class="shier-brand-name">{{ T "brand.name" }}</span>
+                </a>
             </div>
-            <div class="navbar-collapse collapse">
-                <ul class="nav navbar-nav navbar-right">
-                    <li class="dropdown" style="margin-right: 10px;">
+            <div class="navbar-collapse collapse" id="shier-navbar-collapse">
+                {{if .User}}
+                <ul class="nav navbar-nav shier-nav-links">
+                    <li data-nav="/"><a href="/">{{ T "nav.dashboard" }}</a></li>
+                    <li data-nav="/campaigns"><a href="/campaigns">{{ T "nav.campaigns" }}</a></li>
+                    <li data-nav="/scenarios"><a href="/scenarios">{{ T "nav.scenarios" }}</a></li>
+                    <li data-nav="/groups"><a href="/groups">{{ T "nav.groups" }}</a></li>
+                    <li data-nav="/reports"><a href="/reports">{{ T "nav.reports" }}</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right shier-nav-actions">
+                    <li>
+                        <a class="btn btn-primary shier-cta" href="/campaigns?new=1">{{ T "nav.launch" }}</a>
+                    </li>
+                    <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
-                            <i class="fa fa-globe"></i> {{ T "common.language" }} <span class="caret"></span>
+                            {{ T "nav.settings_menu" }} <span class="caret"></span>
                         </a>
-                        <ul class="dropdown-menu">
-                            <li{{ if eq .Lang "zh" }} class="active"{{ end }}><a href="/lang?lang=zh">{{ T "common.lang.zh" }}</a></li>
-                            <li{{ if eq .Lang "en" }} class="active"{{ end }}><a href="/lang?lang=en">{{ T "common.lang.en" }}</a></li>
+                        <ul class="dropdown-menu shier-settings-menu">
+                            <li class="dropdown-header">{{ T "nav.settings_send" }}</li>
+                            <li><a href="/sending_channels">{{ T "nav.sending_channels" }}</a></li>
+                            <li><a href="/sending_profiles">{{ T "nav.sending_profiles" }}</a></li>
+                            <li class="dropdown-header">{{ T "nav.settings_advanced" }}</li>
+                            <li><a href="/templates">{{ T "nav.templates" }} <span class="text-muted">{{ T "nav.advanced" }}</span></a></li>
+                            <li><a href="/landing_pages">{{ T "nav.landing_pages" }} <span class="text-muted">{{ T "nav.advanced" }}</span></a></li>
+                            <li class="dropdown-header">{{ T "nav.settings_account" }}</li>
+                            <li><a href="/settings">{{ T "nav.settings" }}</a></li>
+                            {{if .ModifySystem}}
+                            <li><a href="/users">{{ T "nav.users" }} <span class="text-muted">{{ T "common.admin" }}</span></a></li>
+                            <li><a href="/webhooks">{{ T "nav.webhooks" }} <span class="text-muted">{{ T "common.admin" }}</span></a></li>
+                            {{end}}
                         </ul>
                     </li>
                     <li>
-                        {{if .User}}
                         <div class="btn-group" id="navbar-dropdown">
-                            <a class="btn btn-primary" href="/settings"><i class="fa fa-user"></i> {{.User.Username}}</a>
-                            <a class="btn btn-primary dropdown-toggle" href="/logout" title="{{ T "common.logout" }}">
+                            <a class="btn btn-default" href="/settings"><i class="fa fa-user"></i> {{.User.Username}}</a>
+                            <a class="btn btn-default" href="/logout" title="{{ T "common.logout" }}">
                                 <i class="fa fa-sign-out"></i>
                             </a>
                         </div>
-                        {{else}}
+                    </li>
+                </ul>
+                {{else}}
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
                         <a href="/login">
                             <button type="button" class="btn btn-primary">{{ T "common.login" }}</button>
                         </a>
-                        {{end}}
                     </li>
                 </ul>
+                {{end}}
             </div>
         </div>
     </div>
     {{template "nav" .}}
     {{template "body" .}}
-    <!-- Placed at the end of the document so the pages load faster -->
     <script src="/js/dist/vendor.min.js"></script>
     <script src="/js/dist/app/gophish.min.js"></script>
+    <script>
+        (function () {
+            var path = window.location.pathname || "/";
+            document.querySelectorAll(".shier-nav-links li[data-nav]").forEach(function (li) {
+                var nav = li.getAttribute("data-nav");
+                var active = nav === "/" ? path === "/" : path === nav || path.indexOf(nav + "/") === 0;
+                if (active) li.classList.add("active");
+            });
+        })();
+    </script>
     {{template "scripts" .}}
 </body>
 

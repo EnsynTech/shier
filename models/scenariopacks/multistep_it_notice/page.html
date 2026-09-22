@@ -1,0 +1,26 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>系统升级确认</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#f5f5f5;margin:0;padding:40px 16px}
+    .card{max-width:420px;margin:0 auto;background:#fff;border-radius:8px;padding:28px 24px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+    label{display:block;margin:14px 0 6px;font-size:13px} input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d9d9d9;border-radius:4px}
+    button{margin-top:20px;width:100%;padding:12px;background:#1890ff;color:#fff;border:0;border-radius:4px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>系统升级确认</h1>
+    <p>请确认您已收到维护通知并完成确认。</p>
+    <form method="POST">
+      <label for="name">姓名</label>
+      <input id="name" name="name" required>
+      <label for="dept">部门</label>
+      <input id="dept" name="dept" required>
+      <button type="submit">提交确认</button>
+    </form>
+  </div>
+</body>
+</html>

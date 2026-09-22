@@ -98,6 +98,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = models.UnlockAllDeliveryLogs()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Create our servers
 	adminOptions := []controllers.AdminServerOption{}

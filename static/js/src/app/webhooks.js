@@ -67,10 +67,10 @@ const load = () => {
                         <button class="btn btn-primary ping_button" data-webhook-id="${webhook.id}">
                           Ping
                         </button>
-                        <button class="btn btn-primary edit_button" data-toggle="modal" data-backdrop="static" data-target="#modal" data-webhook-id="${webhook.id}">
+                        <button class="btn btn-primary edit_button" data-toggle="modal" data-backdrop="static" data-target="#modal" data-webhook-id="${webhook.id}" title="${t("js.edit")}" aria-label="${t("js.edit")}">
                           <i class="fa fa-pencil"></i>
                         </button>
-                        <button class="btn btn-danger delete_button" data-webhook-id="${webhook.id}">
+                        <button class="btn btn-danger delete_button" data-webhook-id="${webhook.id}" title="${t("js.delete")}" aria-label="${t("js.delete")}">
                           <i class="fa fa-trash-o"></i>
                         </button>
                       </div>
