@@ -53,7 +53,7 @@ go build
 
 启动后在浏览器打开管理端地址，使用日志中打印的初始管理员账号登录。
 
-本地邮件联调与按手法端到端验收说明见 [`docs/e2e-local-mailpit.md`](./docs/e2e-local-mailpit.md) 与 [`docs/e2e/README.md`](./docs/e2e/README.md)。
+本地邮件联调与按手法端到端验收步骤见本地 `docs/` 中的说明（不随仓库发布）。
 
 ## 分支与上游同步
 
