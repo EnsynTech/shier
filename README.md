@@ -38,7 +38,7 @@
 - 管理端中英双语（按浏览器 `Accept-Language` 自动选择）
 - 面向外部 AI / 自动化的 REST API（配置可编排；**正式发送需人工确认或一次性确认令牌**）
 
-机器可读 API 说明见 [`docs/openapi.yaml`](./docs/openapi.yaml)。
+机器可读 API 与本地联调说明保留在本地 `docs/` 目录（开发笔记，不随仓库发布）。
 
 ## 本地运行（简要）
 
