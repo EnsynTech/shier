@@ -9,6 +9,8 @@ package imap
 import (
 	"bytes"
 	"context"
+	"mime"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -22,9 +24,15 @@ import (
 )
 
 // Pattern for GoPhish emails e.g ?rid=AbC1234
-// We include the optional quoted-printable 3D at the front, just in case decoding fails. e.g ?rid=3DAbC1234
-// We also include alternative URL encoded representations of '=' and '?' to handle Microsoft ATP URLs e.g %3Frid%3DAbC1234
-var goPhishRegex = regexp.MustCompile("((\\?|%3F)rid(=|%3D)(3D)?([A-Za-z0-9]{7}))")
+// Also accepts quoted-printable 3D and one or two layers of URL encoding,
+// which is what some mail gateways produce.
+var goPhishRegex = regexp.MustCompile(`(?i)(?:\?|%3F|%253F)rid(?:=|%3D|%253D)(?:3D)?([A-Za-z0-9]{7})`)
+
+const (
+	reportSourceForward    = "forward"
+	reportSourceComplaint  = "complaint_reply"
+	reportSourceAttachment = "attachment"
+)
 
 // Monitor is a worker that monitors IMAP servers for reported campaign emails
 type Monitor struct {
@@ -128,92 +136,175 @@ func checkForNewEmails(im models.IMAP) {
 		Folder:           im.Folder,
 	}
 
-	msgs, err := mailServer.GetUnread(true, false)
+	msgs, err := mailServer.GetUnread(false, false)
 	if err != nil {
 		log.Error(err)
+		checkSenderReplyMailboxes(im)
 		return
 	}
 	// Update last_succesful_login here via im.Host
 	err = models.SuccessfulLogin(&im)
 
-	if len(msgs) > 0 {
-		log.Debugf("%d new emails for %s", len(msgs), im.Username)
-		var reportingFailed []uint32 // SeqNums of emails that were unable to be reported to phishing server, mark as unread
-		var deleteEmails []uint32    // SeqNums of campaign emails. If DeleteReportedCampaignEmail is true, we will delete these
-		for _, m := range msgs {
-			// Check if sender is from company's domain, if enabled. TODO: Make this an IMAP filter
-			if im.RestrictDomain != "" { // e.g domainResitct = widgets.com
-				splitEmail := strings.Split(m.Email.From, "@")
-				senderDomain := splitEmail[len(splitEmail)-1]
-				if senderDomain != im.RestrictDomain {
-					log.Debug("Ignoring email as not from company domain: ", senderDomain)
-					continue
-				}
-			}
+	// The configured mailbox receives forwards. Replies to the phishing
+	// From address are read from each sending profile mailbox.
+	checkSenderReplyMailboxes(im)
 
-			// Prefer reply detection via In-Reply-To / References before report matching.
-			if handledReply := handleReplyEmail(m.Email); handledReply {
-				if im.DeleteReportedCampaignEmail {
-					deleteEmails = append(deleteEmails, m.SeqNum)
-				}
-				continue
-			}
-
-			rids, err := matchEmail(m.Email) // Search email Text, HTML, and each attachment for rid parameters
-
-			if err != nil {
-				log.Errorf("Error searching email for rids from user '%s': %s", m.Email.From, err.Error())
-				continue
-			}
-			if len(rids) < 1 {
-				// In the future this should be an alert in Gophish
-				log.Infof("User '%s' reported email with subject '%s'. This is not a GoPhish campaign; you should investigate it.", m.Email.From, m.Email.Subject)
-			}
-			for rid := range rids {
-				log.Infof("User '%s' reported email with rid %s", m.Email.From, rid)
-				result, err := models.GetResult(rid)
-				if err != nil {
-					log.Error("Error reporting GoPhish email with rid ", rid, ": ", err.Error())
-					reportingFailed = append(reportingFailed, m.SeqNum)
-					continue
-				}
-				err = result.HandleEmailReport(models.EventDetails{})
-				if err != nil {
-					log.Error("Error updating GoPhish email with rid ", rid, ": ", err.Error())
-					continue
-				}
-				if im.DeleteReportedCampaignEmail {
-					deleteEmails = append(deleteEmails, m.SeqNum)
-				}
-			}
-
+	senders := sendingAddresses(im.UserId)
+	var readUIDs []uint32
+	var deleteUIDs []uint32
+	for _, m := range msgs {
+		action := processReportMailboxMessage(im, m, senders)
+		if m.UID == 0 || action == mailboxLeave {
+			continue
 		}
-		// Check if any emails were unable to be reported, so we can mark them as unread
-		if len(reportingFailed) > 0 {
-			log.Debugf("Marking %d emails as unread as failed to report", len(reportingFailed))
-			err := mailServer.MarkAsUnread(reportingFailed) // Set emails as unread that we failed to report to GoPhish
-			if err != nil {
-				log.Error("Unable to mark emails as unread: ", err.Error())
-			}
+		if action == mailboxDelete {
+			deleteUIDs = append(deleteUIDs, m.UID)
+			continue
 		}
-		// If the DeleteReportedCampaignEmail flag is set, delete reported Gophish campaign emails
-		if len(deleteEmails) > 0 {
-			log.Debugf("Deleting %d campaign emails", len(deleteEmails))
-			err := mailServer.DeleteEmails(deleteEmails) // Delete GoPhish campaign emails.
-			if err != nil {
-				log.Error("Failed to delete emails: ", err.Error())
-			}
+		readUIDs = append(readUIDs, m.UID)
+	}
+	if len(readUIDs) > 0 {
+		if err := mailServer.MarkAsReadUIDs(readUIDs); err != nil {
+			log.Error("Unable to mark emails as read: ", err.Error())
 		}
-
-	} else {
-		log.Debug("No new emails for ", im.Username)
+	}
+	if len(deleteUIDs) > 0 {
+		if err := mailServer.DeleteByUID(deleteUIDs); err != nil {
+			log.Error("Failed to delete emails: ", err.Error())
+		}
 	}
 }
 
+// checkSenderReplyMailboxes reads each sending profile inbox on the same
+// IMAP server. Ordinary replies and complaint replies are recorded there.
+// Forwards stay in the report mailbox.
+func checkSenderReplyMailboxes(im models.IMAP) {
+	smtps, err := models.GetSMTPs(im.UserId)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	senders := sendingAddresses(im.UserId)
+	for _, smtp := range smtps {
+		user := strings.TrimSpace(smtp.Username)
+		if user == "" || smtp.Password == "" || !strings.Contains(user, "@") {
+			continue
+		}
+		if strings.EqualFold(user, strings.TrimSpace(im.Username)) {
+			continue
+		}
+		sender := Mailbox{
+			Host:             im.Host,
+			TLS:              im.TLS,
+			IgnoreCertErrors: im.IgnoreCertErrors,
+			User:             user,
+			Pwd:              smtp.Password,
+			Folder:           im.Folder,
+		}
+		msgs, err := sender.GetUnread(false, false)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		var readUIDs []uint32
+		for _, m := range msgs {
+			if processSenderMailboxMessage(im, m, senders) && m.UID != 0 {
+				readUIDs = append(readUIDs, m.UID)
+			}
+		}
+		if len(readUIDs) == 0 {
+			continue
+		}
+		if err := sender.MarkAsReadUIDs(readUIDs); err != nil {
+			log.Error("Unable to mark sender replies as read: ", err.Error())
+		}
+	}
+}
+
+type mailboxAction int
+
+const (
+	mailboxLeave mailboxAction = iota
+	mailboxRead
+	mailboxDelete
+)
+
+func processReportMailboxMessage(im models.IMAP, m Email, senders map[string]bool) mailboxAction {
+	if im.RestrictDomain != "" {
+		domain := senderDomain(m.Email.From)
+		if !strings.EqualFold(domain, im.RestrictDomain) {
+			log.Debug("Ignoring email as not from company domain: ", domain)
+			return mailboxLeave
+		}
+	}
+	if isCampaignOriginal(m.Email, senders) {
+		log.Debugf("Ignoring campaign original in report mailbox: %s", m.Email.Subject)
+		return mailboxLeave
+	}
+	forward := isForwardSubject(m.Email.Subject)
+	replied := false
+	if !forward {
+		replied = handleReplyEmail(m.Email)
+	}
+	rids, err := matchEmail(m.Email)
+	if err != nil {
+		log.Errorf("Error searching email for rids from user '%s': %s", m.Email.From, err.Error())
+		return mailboxLeave
+	}
+	source := reportSource(m.Email, forward, replied, rids)
+	if source != "" && !recordReports(m.Email, rids, source) {
+		return mailboxLeave
+	}
+	if !replied && source == "" {
+		log.Debugf("Leaving non-campaign mail unread: %s", m.Email.Subject)
+		return mailboxLeave
+	}
+	if im.DeleteReportedCampaignEmail && source != "" {
+		return mailboxDelete
+	}
+	return mailboxRead
+}
+
+func processSenderMailboxMessage(im models.IMAP, m Email, senders map[string]bool) bool {
+	if im.RestrictDomain != "" {
+		domain := senderDomain(m.Email.From)
+		if !strings.EqualFold(domain, im.RestrictDomain) {
+			return false
+		}
+	}
+	if isCampaignOriginal(m.Email, senders) || isForwardSubject(m.Email.Subject) {
+		return false
+	}
+	if !handleReplyEmail(m.Email) {
+		return false
+	}
+	rids, err := matchEmail(m.Email)
+	if err != nil {
+		log.Errorf("Error searching reply for rids from user '%s': %s", m.Email.From, err.Error())
+		return true
+	}
+	if isComplaintReply(m.Email) && len(rids) > 0 && !recordReports(m.Email, rids, reportSourceComplaint) {
+		return false
+	}
+	return true
+}
+
 func checkRIDs(em *email.Email, rids map[string]bool) {
-	// Check Text and HTML
-	emailContent := string(em.Text) + string(em.HTML)
-	for _, r := range goPhishRegex.FindAllStringSubmatch(emailContent, -1) {
+	addRIDs(string(em.Text)+string(em.HTML), rids)
+}
+
+func addRIDs(content string, rids map[string]bool) {
+	scanRIDs(content, rids)
+	if decoded, err := url.QueryUnescape(content); err == nil && decoded != content {
+		scanRIDs(decoded, rids)
+		if decodedAgain, err := url.QueryUnescape(decoded); err == nil {
+			scanRIDs(decodedAgain, rids)
+		}
+	}
+}
+
+func scanRIDs(content string, rids map[string]bool) {
+	for _, r := range goPhishRegex.FindAllStringSubmatch(content, -1) {
 		newrid := r[len(r)-1]
 		if !rids[newrid] {
 			rids[newrid] = true
@@ -306,6 +397,199 @@ func uniqueStrings(in []string) []string {
 	return out
 }
 
+// isForwardSubject reports whether the mailbox client marked the message
+// as a forward, after peeling reply prefixes such as "Re:" or "回复:".
+func isForwardSubject(subject string) bool {
+	folded := strings.ToLower(subjectWithoutReplyPrefixes(subject))
+	for _, prefix := range []string{
+		"fwd:", "fwd：", "fw:", "fw：",
+		"转发:", "转发：", "轉寄:", "轉寄：",
+		"[转发]", "【转发】", "[轉寄]", "【轉寄】",
+		"自动转发:", "自动转发：", "自动轉寄:", "自动轉寄：",
+	} {
+		if strings.HasPrefix(folded, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func subjectWithoutReplyPrefixes(subject string) string {
+	s := strings.TrimSpace(subject)
+	prefixes := []string{"re:", "re：", "回复:", "回复：", "答复:", "答复：", "回覆:", "回覆："}
+	for {
+		folded := strings.ToLower(s)
+		stripped := false
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(folded, prefix) {
+				s = strings.TrimSpace(s[len(prefix):])
+				stripped = true
+				break
+			}
+		}
+		if !stripped {
+			return s
+		}
+	}
+}
+
+func isComplaintReply(em *email.Email) bool {
+	text := newReplyText(string(em.Text), string(em.HTML))
+	for _, word := range []string{"钓鱼", "可疑", "举报", "诈骗"} {
+		if strings.Contains(text, word) {
+			return true
+		}
+	}
+	return false
+}
+
+func newReplyText(text, html string) string {
+	plain := text
+	if strings.TrimSpace(plain) == "" {
+		plain = stripTags(html)
+	}
+	var b strings.Builder
+	for _, line := range strings.Split(plain, "\n") {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(trimmed, ">") || strings.Contains(trimmed, "写道") || strings.Contains(lower, "wrote:") {
+			break
+		}
+		b.WriteString(trimmed)
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+func stripTags(html string) string {
+	var b strings.Builder
+	inTag := false
+	for _, r := range html {
+		switch {
+		case r == '<':
+			inTag = true
+		case r == '>':
+			inTag = false
+		case !inTag:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func hasWrappedOriginal(em *email.Email) bool {
+	for _, a := range em.Attachments {
+		if attachmentIsRFC822(a) {
+			return true
+		}
+	}
+	return false
+}
+
+func attachmentIsRFC822(a *email.Attachment) bool {
+	mediaType := a.Header.Get("Content-Type")
+	if parsed, _, err := mime.ParseMediaType(mediaType); err == nil {
+		mediaType = parsed
+	}
+	ext := strings.ToLower(filepath.Ext(a.Filename))
+	return mediaType == "message/rfc822" || ext == ".eml"
+}
+
+func attachmentIsCalendar(a *email.Attachment) bool {
+	mediaType := a.Header.Get("Content-Type")
+	if parsed, _, err := mime.ParseMediaType(mediaType); err == nil {
+		mediaType = parsed
+	}
+	ext := strings.ToLower(filepath.Ext(a.Filename))
+	return mediaType == "text/calendar" || ext == ".ics"
+}
+
+func reportSource(em *email.Email, forward, replied bool, rids map[string]bool) string {
+	if len(rids) == 0 {
+		return ""
+	}
+	if forward {
+		return reportSourceForward
+	}
+	if hasWrappedOriginal(em) {
+		return reportSourceAttachment
+	}
+	if replied && isComplaintReply(em) {
+		return reportSourceComplaint
+	}
+	return ""
+}
+
+func recordReports(em *email.Email, rids map[string]bool, source string) bool {
+	ok := true
+	for rid := range rids {
+		result, err := models.GetResult(rid)
+		if err != nil {
+			log.Error("Error reporting GoPhish email with rid ", rid, ": ", err.Error())
+			ok = false
+			continue
+		}
+		details := models.EventDetails{
+			From:    em.From,
+			Subject: em.Subject,
+			Source:  source,
+		}
+		if em.Headers != nil {
+			details.MessageID = em.Headers.Get("Message-ID")
+		}
+		if err := result.HandleEmailReport(details); err != nil {
+			log.Error("Error updating GoPhish email with rid ", rid, ": ", err.Error())
+			ok = false
+			continue
+		}
+		log.Infof("User '%s' reported email with rid %s (%s)", em.From, rid, source)
+	}
+	return ok
+}
+
+func isCampaignOriginal(em *email.Email, senders map[string]bool) bool {
+	from := strings.ToLower(extractEmailAddress(em.From))
+	if from != "" && senders[from] {
+		return true
+	}
+	if em.Headers == nil {
+		return false
+	}
+	id := em.Headers.Get("Message-ID")
+	if id == "" {
+		return false
+	}
+	_, err := models.GetResultByMessageID(id)
+	return err == nil
+}
+
+func sendingAddresses(uid int64) map[string]bool {
+	out := map[string]bool{}
+	smtps, err := models.GetSMTPs(uid)
+	if err != nil {
+		log.Error(err)
+		return out
+	}
+	for _, smtp := range smtps {
+		if addr := strings.ToLower(extractEmailAddress(smtp.FromAddress)); addr != "" {
+			out[addr] = true
+		}
+		if addr := strings.ToLower(extractEmailAddress(smtp.Username)); strings.Contains(addr, "@") {
+			out[addr] = true
+		}
+	}
+	return out
+}
+
+func senderDomain(from string) string {
+	addr := extractEmailAddress(from)
+	at := strings.LastIndex(addr, "@")
+	if at < 0 || at == len(addr)-1 {
+		return ""
+	}
+	return strings.ToLower(addr[at+1:])
+}
+
 func extractEmailAddress(from string) string {
 	from = strings.TrimSpace(from)
 	if from == "" {
@@ -327,17 +611,18 @@ func matchEmail(em *email.Email) (map[string]bool, error) {
 
 	// Next check each attachment
 	for _, a := range em.Attachments {
-		ext := filepath.Ext(a.Filename)
-		if a.Header.Get("Content-Type") == "message/rfc822" || ext == ".eml" {
-
-			// Let's decode the email
+		ext := strings.ToLower(filepath.Ext(a.Filename))
+		if attachmentIsRFC822(a) {
 			rawBodyStream := bytes.NewReader(a.Content)
 			attachmentEmail, err := email.NewEmailFromReader(rawBodyStream)
 			if err != nil {
 				return rids, err
 			}
-
 			checkRIDs(attachmentEmail, rids)
+			continue
+		}
+		if attachmentIsCalendar(a) || ext == ".ics" {
+			addRIDs(string(a.Content), rids)
 		}
 	}
 

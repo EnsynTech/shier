@@ -18,6 +18,16 @@ import (
 	"github.com/jordan-wright/email"
 )
 
+// flagList encodes STORE flags as an IMAP parenthesized list, which is what
+// strict servers require. A plain string is quoted and rejected.
+func flagList(flags ...string) []interface{} {
+	out := make([]interface{}, len(flags))
+	for i, flag := range flags {
+		out[i] = flag
+	}
+	return out
+}
+
 // Client interface for IMAP interactions
 type Client interface {
 	Login(username, password string) (cmd *imap.Command, err error)
@@ -30,6 +40,7 @@ type Client interface {
 // Email represents an email.Email with an included IMAP Sequence Number
 type Email struct {
 	SeqNum uint32 `json:"seqnum"`
+	UID    uint32 `json:"uid"`
 	*email.Email
 }
 
@@ -72,6 +83,23 @@ func Validate(s *models.IMAP) error {
 	return err
 }
 
+// MarkAsRead sets the Seen flag on the supplied sequence numbers.
+func (mbox *Mailbox) MarkAsRead(seqs []uint32) error {
+	if len(seqs) == 0 {
+		return nil
+	}
+	imapClient, err := mbox.newClient()
+	if err != nil {
+		return err
+	}
+	defer imapClient.Logout()
+
+	seqSet := new(imap.SeqSet)
+	seqSet.AddNum(seqs...)
+	item := imap.FormatFlagsOp(imap.AddFlags, true)
+	return imapClient.Store(seqSet, item, flagList(imap.SeenFlag), nil)
+}
+
 // MarkAsUnread will set the UNSEEN flag on a supplied slice of SeqNums
 func (mbox *Mailbox) MarkAsUnread(seqs []uint32) error {
 	imapClient, err := mbox.newClient()
@@ -85,7 +113,7 @@ func (mbox *Mailbox) MarkAsUnread(seqs []uint32) error {
 	seqSet.AddNum(seqs...)
 
 	item := imap.FormatFlagsOp(imap.RemoveFlags, true)
-	err = imapClient.Store(seqSet, item, imap.SeenFlag, nil)
+	err = imapClient.Store(seqSet, item, flagList(imap.SeenFlag), nil)
 	if err != nil {
 		return err
 	}
@@ -107,12 +135,48 @@ func (mbox *Mailbox) DeleteEmails(seqs []uint32) error {
 	seqSet.AddNum(seqs...)
 
 	item := imap.FormatFlagsOp(imap.AddFlags, true)
-	err = imapClient.Store(seqSet, item, imap.DeletedFlag, nil)
+	err = imapClient.Store(seqSet, item, flagList(imap.DeletedFlag), nil)
 	if err != nil {
 		return err
 	}
+	return imapClient.Expunge(nil)
+}
 
-	return nil
+// DeleteByUID marks the supplied UIDs deleted and expunges them.
+func (mbox *Mailbox) DeleteByUID(uids []uint32) error {
+	if len(uids) == 0 {
+		return nil
+	}
+	imapClient, err := mbox.newClient()
+	if err != nil {
+		return err
+	}
+	defer imapClient.Logout()
+
+	seqSet := new(imap.SeqSet)
+	seqSet.AddNum(uids...)
+	item := imap.FormatFlagsOp(imap.AddFlags, true)
+	if err := imapClient.UidStore(seqSet, item, flagList(imap.DeletedFlag), nil); err != nil {
+		return err
+	}
+	return imapClient.Expunge(nil)
+}
+
+// MarkAsReadUIDs sets the Seen flag on the supplied UIDs.
+func (mbox *Mailbox) MarkAsReadUIDs(uids []uint32) error {
+	if len(uids) == 0 {
+		return nil
+	}
+	imapClient, err := mbox.newClient()
+	if err != nil {
+		return err
+	}
+	defer imapClient.Logout()
+
+	seqSet := new(imap.SeqSet)
+	seqSet.AddNum(uids...)
+	item := imap.FormatFlagsOp(imap.AddFlags, true)
+	return imapClient.UidStore(seqSet, item, flagList(imap.SeenFlag), nil)
 }
 
 // GetUnread will find all unread emails in the folder and return them as a list.
@@ -127,26 +191,27 @@ func (mbox *Mailbox) GetUnread(markAsRead, delete bool) ([]Email, error) {
 
 	defer imapClient.Logout()
 
-	// Search for unread emails
+	// Search for unread emails by UID so a later Seen flag does not
+	// follow a sequence number that shifted after another client deleted mail.
 	criteria := imap.NewSearchCriteria()
 	criteria.WithoutFlags = []string{imap.SeenFlag}
-	seqs, err := imapClient.Search(criteria)
+	uids, err := imapClient.UidSearch(criteria)
 	if err != nil {
 		return emails, err
 	}
 
-	if len(seqs) == 0 {
+	if len(uids) == 0 {
 		return emails, nil
 	}
 
 	seqset := new(imap.SeqSet)
-	seqset.AddNum(seqs...)
+	seqset.AddNum(uids...)
 	section := &imap.BodySectionName{}
 	items := []imap.FetchItem{imap.FetchEnvelope, imap.FetchFlags, imap.FetchInternalDate, section.FetchItem()}
 	messages := make(chan *imap.Message)
 
 	go func() {
-		if err := imapClient.Fetch(seqset, items, messages); err != nil {
+		if err := imapClient.UidFetch(seqset, items, messages); err != nil {
 			log.Error("Error fetching emails: ", err.Error()) // TODO: How to handle this, need to propogate error out
 		}
 	}()
@@ -174,9 +239,29 @@ func (mbox *Mailbox) GetUnread(markAsRead, delete bool) ([]Email, error) {
 			return emails, err
 		}
 
-		emtmp := Email{Email: em, SeqNum: msg.SeqNum} // Not sure why msg.Uid is always 0, so swapped to sequence numbers
+		emtmp := Email{Email: em, SeqNum: msg.SeqNum, UID: msg.Uid}
 		emails = append(emails, emtmp)
 
+	}
+	// markAsRead is what checkForNewEmails asks for. Without it, the same
+	// unread forward is recorded as a new report on every poll.
+	if markAsRead && len(emails) > 0 {
+		seqSet := new(imap.SeqSet)
+		n := 0
+		for _, em := range emails {
+			if em.UID != 0 {
+				seqSet.AddNum(em.UID)
+				n++
+			}
+		}
+		if n > 0 {
+			item := imap.FormatFlagsOp(imap.AddFlags, true)
+			// A bare string is sent as a quoted IMAP string. Aliyun rejects that
+			// and leaves the message unread, so the same forward is polled again.
+			if err := imapClient.UidStore(seqSet, item, flagList(imap.SeenFlag), nil); err != nil {
+				log.Error("Unable to mark emails as read: ", err.Error())
+			}
+		}
 	}
 	return emails, nil
 }

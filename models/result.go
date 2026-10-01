@@ -24,19 +24,19 @@ type mmGeoPoint struct {
 // Result contains the fields for a result object,
 // which is a representation of a target in a campaign.
 type Result struct {
-	Id           int64     `json:"-"`
-	CampaignId   int64     `json:"-"`
-	UserId       int64     `json:"-"`
-	RId          string    `json:"id"`
-	Status       string    `json:"status" sql:"not null"`
-	IP           string    `json:"ip"`
-	Latitude     float64   `json:"latitude"`
-	Longitude    float64   `json:"longitude"`
-	SendDate     time.Time `json:"send_date"`
-	Reported       bool      `json:"reported" sql:"not null"`
-	Replied        bool      `json:"replied" sql:"not null"`
-	LastEmailStep  int       `json:"last_email_step"`
-	ModifiedDate   time.Time `json:"modified_date"`
+	Id            int64     `json:"-"`
+	CampaignId    int64     `json:"-"`
+	UserId        int64     `json:"-"`
+	RId           string    `json:"id"`
+	Status        string    `json:"status" sql:"not null"`
+	IP            string    `json:"ip"`
+	Latitude      float64   `json:"latitude"`
+	Longitude     float64   `json:"longitude"`
+	SendDate      time.Time `json:"send_date"`
+	Reported      bool      `json:"reported" sql:"not null"`
+	Replied       bool      `json:"replied" sql:"not null"`
+	LastEmailStep int       `json:"last_email_step"`
+	ModifiedDate  time.Time `json:"modified_date"`
 	BaseRecipient
 }
 
@@ -156,6 +156,9 @@ func (r *Result) HandleFormSubmit(details EventDetails) error {
 // HandleEmailReport updates a Result in the case where they report a simulated
 // phishing email using the HTTP handler.
 func (r *Result) HandleEmailReport(details EventDetails) error {
+	if r.Reported {
+		return nil
+	}
 	event, err := r.createEvent(EventReported, details)
 	if err != nil {
 		return err
@@ -170,8 +173,7 @@ func (r *Result) HandleEmailReport(details EventDetails) error {
 // On first reply, queues the next on_reply campaign step when configured.
 func (r *Result) HandleEmailReply(details EventDetails) error {
 	if r.Replied {
-		r.ModifiedDate = time.Now().UTC()
-		return db.Save(r).Error
+		return nil
 	}
 	event, err := r.createEvent(EventReplied, details)
 	if err != nil {

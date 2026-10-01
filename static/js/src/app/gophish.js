@@ -157,6 +157,10 @@ var api = {
         // summary() - Queries the API for GET /campaigns/summary
         summary: function (id) {
             return query("/campaigns/" + id + "/summary", "GET", {}, true)
+        },
+        // report() - Records a manual report at POST /campaigns/:id/results/:rid/report
+        report: function (id, rid) {
+            return query("/campaigns/" + id + "/results/" + rid + "/report", "POST", {}, false)
         }
     },
     // groups contains the endpoints for /groups

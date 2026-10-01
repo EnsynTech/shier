@@ -179,6 +179,36 @@ func (as *Server) CampaignResults(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CampaignResultReport records a manual report from the admin UI.
+// It does not require the operator's browser to reach the phishing listener,
+// and it still works after the campaign is completed.
+func (as *Server) CampaignResultReport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
+		return
+	}
+	vars := mux.Vars(r)
+	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	rid := vars["rid"]
+	uid := ctx.Get(r, "user_id").(int64)
+	campaign, err := models.GetCampaign(id, uid)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: "Campaign not found"}, http.StatusNotFound)
+		return
+	}
+	result, err := models.GetResult(rid)
+	if err != nil || result.CampaignId != campaign.Id {
+		JSONResponse(w, models.Response{Success: false, Message: "Result not found"}, http.StatusNotFound)
+		return
+	}
+	if err := result.HandleEmailReport(models.EventDetails{Source: "manual"}); err != nil {
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	JSONResponse(w, models.Response{Success: true, Message: "Email Reported"}, http.StatusOK)
+}
+
 // CampaignSummary returns the summary for a given campaign.
 func (as *Server) CampaignSummary(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

@@ -124,7 +124,7 @@
     "id": "reply_meeting_confirm",
     "category": "conversation",
     "title": "会议出席请回复",
-    "description": "引导用户直接回复邮件确认出席；需配置 IMAP 监控与 Reply-To 以检测「已回复」。",
+    "description": "引导用户直接回复邮件确认出席。回复进入发信配置的邮箱，由 IMAP 在该邮箱检测「已回复」。上报邮箱只收转发。",
     "has_attachment": false,
     "has_qr": false,
     "difficulty": 2,
