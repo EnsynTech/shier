@@ -155,8 +155,35 @@ var statuses = {
         point: "ct-point-sending"
     },
     "Campaign Created": {
+        color: "#1abc9c",
         label: "label-success",
-        icon: "fa-rocket"
+        icon: "fa-rocket",
+        point: "ct-point-sent"
+    },
+    "Campaign Saved as Draft": {
+        color: "#95a5a6",
+        label: "label-default",
+        icon: "fa-file-text-o",
+        point: "ct-point-error"
+    },
+    "Campaign Launched": {
+        color: "#1abc9c",
+        label: "label-success",
+        icon: "fa-rocket",
+        point: "ct-point-sent"
+    }
+}
+
+function timelineStatus(message) {
+    var style = statuses[message]
+    if (style && style.label) {
+        return style
+    }
+    return {
+        color: "#6c7a89",
+        label: "label-default",
+        icon: "fa-question",
+        point: "ct-point-error"
     }
 }
 
@@ -449,9 +476,10 @@ function renderTimeline(data) {
             // Add the event
             results += '<div class="timeline-entry">' +
                 '    <div class="timeline-bar"></div>'
+            var eventStyle = timelineStatus(event.message)
             results +=
-                '    <div class="timeline-icon ' + statuses[event.message].label + '">' +
-                '    <i class="fa ' + statuses[event.message].icon + '"></i></div>' +
+                '    <div class="timeline-icon ' + eventStyle.label + '">' +
+                '    <i class="fa ' + eventStyle.icon + '"></i></div>' +
                 '    <div class="timeline-message">' + escapeHtml(event.message) +
                 '    <span class="timeline-date">' + moment.utc(event.time).local().format('MMMM Do YYYY h:mm:ss a') + '</span>'
             if (event.details) {
@@ -489,6 +517,31 @@ function renderTimeline(data) {
                     results += '<span class="label label-default">Error</span> ' + details.error
                     results += '</div>'
                 }
+                if (event.message == "Email Reported") {
+                    var reportLines = []
+                    var sourceLabels = {
+                        forward: t("results.report_source_forward"),
+                        complaint_reply: t("results.report_source_complaint"),
+                        attachment: t("results.report_source_attachment"),
+                        manual: t("results.report_source_manual")
+                    }
+                    if (details.source && sourceLabels[details.source]) {
+                        reportLines.push(sourceLabels[details.source])
+                    }
+                    if (details.from) {
+                        reportLines.push(details.from)
+                    }
+                    if (details.subject) {
+                        reportLines.push(details.subject)
+                    }
+                    if (details.message_id) {
+                        reportLines.push(details.message_id)
+                    }
+                    if (reportLines.length) {
+                        results += '<div class="timeline-event-details"><i class="fa fa-caret-right"></i> View Details</div>'
+                        results += '<div class="timeline-event-results">' + escapeHtml(reportLines.join(" · ")) + '</div>'
+                    }
+                }
             }
             results += '</div></div>'
         }
@@ -497,9 +550,10 @@ function renderTimeline(data) {
     if (record.status == "Scheduled" || record.status == "Retrying") {
         results += '<div class="timeline-entry">' +
             '    <div class="timeline-bar"></div>'
+        var scheduleStyle = timelineStatus(record.status)
         results +=
-            '    <div class="timeline-icon ' + statuses[record.status].label + '">' +
-            '    <i class="fa ' + statuses[record.status].icon + '"></i></div>' +
+            '    <div class="timeline-icon ' + scheduleStyle.label + '">' +
+            '    <i class="fa ' + scheduleStyle.icon + '"></i></div>' +
             '    <div class="timeline-message">' + "Scheduled to send at " + record.send_date + '</span>'
     }
     results += '</div></div>'
@@ -756,7 +810,7 @@ var updateMap = function (results) {
  * @param {moment(datetime)} send_date 
  */
 function createStatusLabel(status, send_date) {
-    var label = statuses[status].label || "label-default";
+    var label = timelineStatus(status).label || "label-default";
     var statusColumn = "<span class=\"label " + label + "\">" + status + "</span>"
     // Add the tooltip if the email is scheduled to be sent
     if (status == "Scheduled" || status == "Retrying") {
@@ -788,7 +842,7 @@ function poll() {
                     x: event_date.valueOf(),
                     y: 1,
                     marker: {
-                        fillColor: statuses[event.message].color
+                        fillColor: timelineStatus(event.message).color
                     }
                 })
             })
@@ -989,7 +1043,7 @@ function load() {
                         x: event_date.valueOf(),
                         y: 1,
                         marker: {
-                            fillColor: statuses[event.message].color
+                            fillColor: timelineStatus(event.message).color
                         }
                     })
                 })
@@ -1032,42 +1086,29 @@ function refresh() {
 
 function report_mail(rid, cid) {
     Swal.fire({
-        title: t("js.confirm_delete"),
-        text: "This result will be flagged as reported (RID: " + rid + ")",
+        title: t("js.confirm_report"),
+        text: t("js.confirm_report_text"),
         type: "question",
         animation: false,
         showCancelButton: true,
-        confirmButtonText: "Continue",
+        confirmButtonText: t("js.ok"),
         confirmButtonColor: "#428bca",
         reverseButtons: true,
         allowOutsideClick: false,
         showLoaderOnConfirm: true
     }).then(function (result) {
-        if (result.value){
-            api.campaignId.get(cid).success((function(c) {
-                report_url = new URL(c.url)
-                report_url.pathname = '/report'
-                report_url.search = "?rid=" + rid 
-                fetch(report_url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
+        if (result.value) {
+            api.campaignId.report(cid, rid)
+                .success(function () {
                     refresh();
                 })
-                .catch(error => {
-                    let errorMessage = error.message;
-                    if (error.message === "Failed to fetch") {
-                        errorMessage = "This might be due to Mixed Content issues or network problems.";
-                    }
+                .error(function () {
                     Swal.fire({
-                        title: 'Error',
-                        text: errorMessage,
-                        type: 'error',
-                        confirmButtonText: 'Close'
+                        title: t("js.report_failed"),
+                        type: "error",
+                        confirmButtonText: "Close"
                     });
                 });
-            }));
         }
     })
 }

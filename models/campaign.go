@@ -102,8 +102,12 @@ type Event struct {
 // EventDetails is a struct that wraps common attributes we want to store
 // in an event
 type EventDetails struct {
-	Payload url.Values        `json:"payload"`
-	Browser map[string]string `json:"browser"`
+	Payload   url.Values        `json:"payload"`
+	Browser   map[string]string `json:"browser"`
+	From      string            `json:"from,omitempty"`
+	Subject   string            `json:"subject,omitempty"`
+	MessageID string            `json:"message_id,omitempty"`
+	Source    string            `json:"source,omitempty"`
 }
 
 // EventError is a struct that wraps an error that occurs when sending an
