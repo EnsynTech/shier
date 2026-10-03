@@ -1,0 +1,7 @@
+{
+  "subject": "【人力资源】本月调薪已生效，请核对工资条",
+  "template_name": "[链接] 调薪确认与工资条",
+  "page_name": "[链接] 调薪确认与工资条-落地页",
+  "capture_credentials": true,
+  "capture_passwords": true
+}

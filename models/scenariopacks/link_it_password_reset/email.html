@@ -1,0 +1,13 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>根据密码策略，您的域账号（同时用于 OA）密码将于<strong>明日 00:00</strong>过期。过期后无法登录电脑、邮箱和审批。</p>
+  <p>请今天内打开链接，验证当前密码并完成重置。服务台不接受口头报密码。</p>
+  <p><a href="{{.URL}}">重置域账号密码</a></p>
+  <p style="color:#888; font-size: 12px;">IT 服务台 · 请勿把密码回复到本邮件</p>
+  {{.Tracker}}
+</body>
+</html>

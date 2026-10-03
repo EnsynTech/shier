@@ -1,0 +1,13 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>您本月的调薪结果已生成，新的工资条可在人力资源系统查看。请在<strong>三个工作日内</strong>核对岗位工资、绩效和代扣个税，如有异议请在线提交。</p>
+  <p>查看工资条需要使用工号登录。薪资信息请勿转发。</p>
+  <p><a href="{{.URL}}">查看调薪后的工资条</a></p>
+  <p style="color:#888; font-size: 12px;">人力资源部 · 薪酬福利</p>
+  {{.Tracker}}
+</body>
+</html>

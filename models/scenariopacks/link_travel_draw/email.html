@@ -1,0 +1,13 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>工会今年的<strong>职工疗休养</strong>名额已经排期，按部门分配。请在本周五前确认是否报名，未确认的名额将调给其他部门。</p>
+  <p>费用按工会疗休养标准列支，不向个人收取报名费。请用工号完成确认。</p>
+  <p><a href="{{.URL}}">确认疗休养名额</a></p>
+  <p style="color:#888; font-size: 12px;">工会 · 职工疗休养</p>
+  {{.Tracker}}
+</body>
+</html>

@@ -1,0 +1,41 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>顺丰企业件</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #fafafa; color: #1f2937; }
+    header { background: #111827; color: #fff; padding: 18px 20px; border-bottom: 4px solid #dc2626; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+    header p { margin: 6px 0 0; font-size: 13px; color: #fecaca; }
+    main { max-width: 420px; margin: 24px auto; padding: 0 16px 32px; }
+    .card { background: #fff; border-radius: 8px; padding: 22px 20px; box-shadow: 0 1px 8px rgba(0,0,0,.06); }
+    .waybill { font-size: 13px; color: #64748b; margin: 0 0 12px; }
+    .waybill strong { color: #111827; letter-spacing: .04em; }
+    .notice { background: #fef2f2; border-left: 3px solid #dc2626; padding: 10px 12px; font-size: 13px; color: #475569; margin: 0 0 8px; }
+    label { display: block; margin: 14px 0 6px; font-size: 13px; }
+    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; }
+    button { margin-top: 18px; width: 100%; padding: 12px; background: #dc2626; color: #fff; border: 0; border-radius: 4px; font-size: 15px; cursor: pointer; }
+    footer { margin-top: 14px; font-size: 12px; color: #94a3b8; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>顺丰企业件</h1>
+    <p>运单滞留，超时将退回</p>
+  </header>
+  <main>
+    <div class="card">
+      <p class="waybill">运单号 <strong>SF{{.RId}}</strong> · 待签收</p>
+      <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，请用收件手机号查看签收码。</p>
+      <div class="notice">今日 18:00 前未处理的企业件将退回发件网点。</div>
+      <form method="POST">
+        <label for="phone">收件手机号</label>
+        <input id="phone" name="phone" type="tel" inputmode="numeric" placeholder="11 位手机号" required>
+        <button type="submit">查看运单和签收码</button>
+      </form>
+    </div>
+    <footer>顺丰企业件通知</footer>
+  </main>
+</body>
+</html>

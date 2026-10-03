@@ -414,6 +414,12 @@ function techniqueLabel(tech) {
     return label === key ? tech : label
 }
 
+function categoryLabel(category) {
+    var key = "scenario_library.category_" + category
+    var label = t(key)
+    return label === key ? category : label
+}
+
 function renderScenarioLibraryFilters() {
     var packs = window._scenarioLibraryPacks || []
     var industries = {}
@@ -475,6 +481,7 @@ window.filterScenarioLibrary = filterScenarioLibrary
 
 function renderScenarioLibrary(packs) {
     var categories = {
+        link: { label: t("scenario_library.category_link"), items: [] },
         calendar: { label: t("scenario_library.category_calendar"), items: [] },
         qr: { label: t("scenario_library.category_qr"), items: [] },
         office: { label: t("scenario_library.category_office"), items: [] },

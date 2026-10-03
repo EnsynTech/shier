@@ -1,0 +1,13 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>行政核对对公 ETC 账户时，发现一笔挂在您名下的<strong>通行费异常</strong>。账单发票抬头与公司名称不一致，财务暂不能报销。</p>
+  <p>请打开链接，用手机号核对通行记录和发票抬头。若车辆不是公务出行，请标注退回。</p>
+  <p><a href="{{.URL}}">核对 ETC 账单</a></p>
+  <p style="color:#888; font-size: 12px;">行政管理部 · 车辆与通行</p>
+  {{.Tracker}}
+</body>
+</html>

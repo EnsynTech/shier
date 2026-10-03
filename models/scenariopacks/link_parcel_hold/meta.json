@@ -1,0 +1,7 @@
+{
+  "subject": "【顺丰速运】您的企业件即将超时退回",
+  "template_name": "[链接] 顺丰企业件滞留",
+  "page_name": "[链接] 顺丰企业件滞留-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false
+}

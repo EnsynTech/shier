@@ -18,14 +18,14 @@ $(function () {
                     seen[label] = true
                     tags += "<span class='shier-tag'>" + escapeHtml(label) + "</span>"
                 }
-                addTag(pack.category)
+                addTag(categoryLabel(pack.category))
                 if (pack.difficulty) {
                     // Difficulty label is distinct from technique tags; never dedupe against category.
                     tags += "<span class='shier-tag'>" + escapeHtml(t("scenarios.difficulty") + " " + pack.difficulty) + "</span>"
                 }
                 if (pack.techniques && pack.techniques.length) {
                     $.each(pack.techniques.slice(0, 3), function (j, tech) {
-                        addTag(tech)
+                        addTag(techniqueLabel(tech))
                     })
                 }
                 html += "<article class='shier-scenario-card'>" +

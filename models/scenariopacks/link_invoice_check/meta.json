@@ -1,0 +1,7 @@
+{
+  "subject": "【财务通知】您有一张数电票待查验",
+  "template_name": "[链接] 数电票查验",
+  "page_name": "[链接] 数电票查验-落地页",
+  "capture_credentials": true,
+  "capture_passwords": true
+}

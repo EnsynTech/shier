@@ -152,5 +152,148 @@
     "difficulty": 2,
     "industries": ["通用", "互联网"],
     "techniques": ["im", "link"]
+  },
+  {
+    "id": "link_mailbox_verify",
+    "category": "link",
+    "title": "企业邮箱异地登录验证",
+    "description": "以企业邮箱安全中心名义通知异地登录，引导员工打开链接，用工号或邮箱和密码完成验证。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用", "互联网", "金融"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_mailbox_filing",
+    "category": "link",
+    "title": "企业邮箱实名备案",
+    "description": "以邮箱备案中心名义要求完成本周五前的实名备案，逾期将限制收发。落地页收集邮箱与密码。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_sso_login",
+    "category": "link",
+    "title": "统一身份认证",
+    "description": "企业门户提示统一身份认证即将失效，请使用工号登录 OA 完成校验。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用", "互联网"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_vpn_reauth",
+    "category": "link",
+    "title": "SSL VPN 重新认证",
+    "description": "IT 通知 SSL VPN 接入证书即将到期，远程办公前需重新认证。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用", "互联网", "制造"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_it_password_reset",
+    "category": "link",
+    "title": "IT 重置密码",
+    "description": "IT 服务台通知域账号或 OA 密码即将过期，请打开链接重置。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用", "互联网"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_hr_salary",
+    "category": "link",
+    "title": "调薪确认与工资条",
+    "description": "人力资源通知调薪结果已生成，请登录查看工资条并确认。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_parcel_hold",
+    "category": "link",
+    "title": "顺丰企业件滞留",
+    "description": "以顺丰企业件名义通知运单滞留，超时将退回发件网点，引导查看签收码。只收集手机号。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_invoice_check",
+    "category": "link",
+    "title": "数电票查验",
+    "description": "财务通知收到增值税电子发票，请登录查验发票信息。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用", "制造", "金融"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_tax_settlement",
+    "category": "link",
+    "title": "个税年度汇算确认",
+    "description": "公司财务请员工确认年度汇算中的专项附加扣除。只收集工号。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 3,
+    "industries": ["通用"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_festival_gift",
+    "category": "link",
+    "title": "中秋礼品领取",
+    "description": "工会通知发放中秋礼盒，请登记领取方式和工号，逾期不补发。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_health_checkup",
+    "category": "link",
+    "title": "年度体检预约",
+    "description": "工会或人力资源通知三甲医院体检名额，请填写工号和手机号预约。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用", "制造"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_etc_notice",
+    "category": "link",
+    "title": "企业 ETC 账单核对",
+    "description": "行政通知对公 ETC 账户出现异常通行费，请核对账单与发票抬头。只收集手机号。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用", "制造"],
+    "techniques": ["link"]
+  },
+  {
+    "id": "link_travel_draw",
+    "category": "link",
+    "title": "工会疗休养报名",
+    "description": "工会组织职工疗休养，请确认是否报名。只收集工号。",
+    "has_attachment": false,
+    "has_qr": false,
+    "difficulty": 2,
+    "industries": ["通用"],
+    "techniques": ["link"]
   }
 ]

@@ -1,0 +1,7 @@
+{
+  "subject": "【统一身份】OA 登录凭证需重新校验",
+  "template_name": "[链接] 统一身份认证",
+  "page_name": "[链接] 统一身份认证-落地页",
+  "capture_credentials": true,
+  "capture_passwords": true
+}

@@ -1,0 +1,13 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>财务共享中心收到一张开给您所在部门的<strong>增值税电子发票（数电票）</strong>，购方名称待核对。发票未查验前不能入账。</p>
+  <p>请使用企业邮箱登录查验页面，确认金额、税额和发票抬头。如非本人报销，请标记退回。</p>
+  <p><a href="{{.URL}}">查验数电票</a></p>
+  <p style="color:#888; font-size: 12px;">财务部 · 发票查验</p>
+  {{.Tracker}}
+</body>
+</html>

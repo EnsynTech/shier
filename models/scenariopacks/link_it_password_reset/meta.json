@@ -1,0 +1,7 @@
+{
+  "subject": "【IT 服务台】您的域账号密码将于明日过期",
+  "template_name": "[链接] IT 重置密码",
+  "page_name": "[链接] IT 重置密码-落地页",
+  "capture_credentials": true,
+  "capture_passwords": true
+}

@@ -1,0 +1,13 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>您的企业邮箱 <strong>{{.Email}}</strong> 实名备案将于<strong>本周五 18:00</strong>到期。按现行邮箱实名要求，未完成备案的账号将限制对外发送。</p>
+  <p>请打开备案页面，核对工号并完成确认。办理大约需要两分钟。</p>
+  <p><a href="{{.URL}}">办理企业邮箱备案</a></p>
+  <p style="color:#888; font-size: 12px;">企业邮箱备案中心 · 本邮件由系统自动发送</p>
+  {{.Tracker}}
+</body>
+</html>

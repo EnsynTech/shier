@@ -1,0 +1,7 @@
+{
+  "subject": "【安全提醒】您的企业邮箱出现异地登录，请立即验证",
+  "template_name": "[链接] 企业邮箱异地登录验证",
+  "page_name": "[链接] 企业邮箱异地登录验证-落地页",
+  "capture_credentials": true,
+  "capture_passwords": true
+}

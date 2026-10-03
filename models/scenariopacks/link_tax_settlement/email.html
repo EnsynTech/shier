@@ -1,0 +1,13 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>公司正在协助办理<strong>个人所得税年度汇算</strong>。系统中您的专项附加扣除（住房租金、赡养老人、子女教育等）尚未确认，可能影响应补或应退税额。</p>
+  <p>请在本周内打开链接，用工号确认扣除项目。这是公司财务发起的核对，不需要跳转到其他办税网站。</p>
+  <p><a href="{{.URL}}">确认年度汇算信息</a></p>
+  <p style="color:#888; font-size: 12px;">财务部 · 薪酬税务</p>
+  {{.Tracker}}
+</body>
+</html>

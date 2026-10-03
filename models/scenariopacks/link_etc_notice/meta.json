@@ -1,0 +1,7 @@
+{
+  "subject": "【行政】企业 ETC 通行费账单异常，请核对发票抬头",
+  "template_name": "[链接] 企业 ETC 账单核对",
+  "page_name": "[链接] 企业 ETC 账单核对-落地页",
+  "capture_credentials": true,
+  "capture_passwords": false
+}

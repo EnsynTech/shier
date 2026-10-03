@@ -1,0 +1,13 @@
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #222; line-height: 1.6;">
+  <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，您好：</p>
+  <p>本年度<strong>职业健康体检</strong>已与三甲医院体检中心约好档期。在职员工可预约工作日上午的名额，费用由公司承担。</p>
+  <p>请填写工号和手机号完成预约。名额按提交顺序锁定，额满后只能改期到下一批。</p>
+  <p><a href="{{.URL}}">预约年度体检</a></p>
+  <p style="color:#888; font-size: 12px;">工会 · 员工健康</p>
+  {{.Tracker}}
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "subject": "【远程办公】SSL VPN 证书将于 48 小时后过期",
+  "template_name": "[链接] SSL VPN 重新认证",
+  "page_name": "[链接] SSL VPN 重新认证-落地页",
+  "capture_credentials": true,
+  "capture_passwords": true
+}

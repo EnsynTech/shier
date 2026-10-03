@@ -1,0 +1,40 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>重置域账号密码</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #fff7ed; color: #1f2937; }
+    header { background: #c2410c; color: #fff; padding: 18px 20px; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+    header p { margin: 6px 0 0; font-size: 13px; opacity: .92; }
+    main { max-width: 420px; margin: 24px auto; padding: 0 16px 32px; }
+    .card { background: #fff; border-radius: 8px; padding: 22px 20px; box-shadow: 0 1px 8px rgba(0,0,0,.06); }
+    .notice { background: #fff7ed; border-left: 3px solid #ea580c; padding: 10px 12px; font-size: 13px; color: #475569; margin: 0 0 8px; }
+    label { display: block; margin: 14px 0 6px; font-size: 13px; }
+    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; }
+    button { margin-top: 18px; width: 100%; padding: 12px; background: #ea580c; color: #fff; border: 0; border-radius: 4px; font-size: 15px; cursor: pointer; }
+    footer { margin-top: 14px; font-size: 12px; color: #94a3b8; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>IT 服务台</h1>
+    <p>域账号密码即将过期</p>
+  </header>
+  <main>
+    <div class="card">
+      <p>{{if .FirstName}}{{.FirstName}}{{else}}同事{{end}}，请先验证当前密码，再设置新密码。</p>
+      <div class="notice">域账号同时用于 OA 和邮箱。请勿把密码通过微信或邮件发送给他人。</div>
+      <form method="POST">
+        <label for="username">域账号</label>
+        <input id="username" name="username" type="text" value="{{.Email}}" autocomplete="username" required>
+        <label for="password">当前密码</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">验证并继续重置</button>
+      </form>
+    </div>
+    <footer>IT 服务台</footer>
+  </main>
+</body>
+</html>

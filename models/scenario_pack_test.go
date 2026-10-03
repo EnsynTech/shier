@@ -122,6 +122,60 @@ func (s *ModelsSuite) TestImportOfficeAndQRVariantPacks(c *check.C) {
 	c.Assert(len(pngT.Attachments), check.Equals, 2)
 }
 
+func (s *ModelsSuite) TestImportLinkScenarioPacks(c *check.C) {
+	packs, err := ListScenarioPacks()
+	c.Assert(err, check.IsNil)
+	byID := map[string]ScenarioPackSummary{}
+	for _, p := range packs {
+		byID[p.ID] = p
+	}
+	passwordPacks := map[string]bool{
+		"link_mailbox_verify":    true,
+		"link_mailbox_filing":    true,
+		"link_sso_login":         true,
+		"link_vpn_reauth":        true,
+		"link_it_password_reset": true,
+		"link_hr_salary":         true,
+		"link_invoice_check":     true,
+	}
+	ids := []string{
+		"link_mailbox_verify",
+		"link_mailbox_filing",
+		"link_sso_login",
+		"link_vpn_reauth",
+		"link_it_password_reset",
+		"link_hr_salary",
+		"link_parcel_hold",
+		"link_invoice_check",
+		"link_tax_settlement",
+		"link_festival_gift",
+		"link_health_checkup",
+		"link_etc_notice",
+		"link_travel_draw",
+	}
+	for _, id := range ids {
+		summary, ok := byID[id]
+		c.Assert(ok, check.Equals, true)
+		c.Assert(summary.Category, check.Equals, "link")
+		c.Assert(summary.HasAttachment, check.Equals, false)
+		c.Assert(summary.HasQR, check.Equals, false)
+		c.Assert(summary.Techniques, check.DeepEquals, []string{"link"})
+
+		result, err := ImportScenarioPack(1, id)
+		c.Assert(err, check.IsNil)
+		tmpl, err := GetTemplate(result.TemplateID, 1)
+		c.Assert(err, check.IsNil)
+		c.Assert(strings.Contains(tmpl.HTML, "{{.URL}}"), check.Equals, true)
+		c.Assert(strings.Contains(tmpl.HTML, "{{.Tracker}}"), check.Equals, true)
+		c.Assert(strings.Contains(tmpl.Text, "{{.URL}}"), check.Equals, true)
+		page, err := GetPage(result.PageID, 1)
+		c.Assert(err, check.IsNil)
+		c.Assert(strings.Contains(strings.ToLower(page.HTML), "<form"), check.Equals, true)
+		c.Assert(page.CaptureCredentials, check.Equals, true)
+		c.Assert(page.CapturePasswords, check.Equals, passwordPacks[id])
+	}
+}
+
 func (s *ModelsSuite) TestImportUnknownScenarioPack(c *check.C) {
 	_, err := ImportScenarioPack(1, "does_not_exist")
 	c.Assert(err, check.Equals, ErrScenarioPackNotFound)
