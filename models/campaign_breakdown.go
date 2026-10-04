@@ -10,15 +10,22 @@ const (
 	BreakdownEmptyDepartment = "未填写"
 	// BreakdownEmptyTechnique is the bucket label for campaigns without technique tags.
 	BreakdownEmptyTechnique = "未标注"
+	// MinReportSample is the delivered-recipient count below which a bucket is too small to rank.
+	MinReportSample = 5
 )
 
 // BreakdownBucket is an aggregated click-rate slice.
+// Total is the delivered count, which is also the click-rate denominator.
 type BreakdownBucket struct {
-	Department string  `json:"department,omitempty"`
-	Technique  string  `json:"technique,omitempty"`
-	Total      int64   `json:"total"`
-	Clicked    int64   `json:"clicked"`
-	ClickRate  float64 `json:"click_rate"`
+	Department  string  `json:"department,omitempty"`
+	Technique   string  `json:"technique,omitempty"`
+	Total       int64   `json:"total"`
+	Delivered   int64   `json:"delivered"`
+	Clicked     int64   `json:"clicked"`
+	Submitted   int64   `json:"submitted"`
+	Reported    int64   `json:"reported"`
+	ClickRate   float64 `json:"click_rate"`
+	SampleSmall bool    `json:"sample_small"`
 }
 
 // CampaignBreakdown is the cross-campaign department × technique report.
@@ -31,16 +38,32 @@ type CampaignBreakdown struct {
 type breakdownResultRow struct {
 	Department string
 	Status     string
+	Reported   bool
 	Techniques string
 }
 
 type bucketAcc struct {
-	total   int64
-	clicked int64
+	delivered int64
+	clicked   int64
+	submitted int64
+	reported  int64
 }
 
 func resultCountsAsClicked(status string) bool {
 	return status == EventClicked || status == EventDataSubmit
+}
+
+func resultCountsAsDelivered(status string) bool {
+	switch status {
+	case EventSent, EventOpened, EventClicked, EventDataSubmit:
+		return true
+	default:
+		return false
+	}
+}
+
+func resultCountsAsSubmitted(status string) bool {
+	return status == EventDataSubmit
 }
 
 func parseTechniquesColumn(raw string) []string {
@@ -74,15 +97,24 @@ func normalizeDepartment(dept string) string {
 	return dept
 }
 
+func rateOf(num, den int64) float64 {
+	if den <= 0 {
+		return 0
+	}
+	return float64(num) / float64(den)
+}
+
 func finalizeBuckets(acc map[string]*bucketAcc, withDept, withTech bool) []BreakdownBucket {
 	out := make([]BreakdownBucket, 0, len(acc))
 	for key, a := range acc {
 		b := BreakdownBucket{
-			Total:   a.total,
-			Clicked: a.clicked,
-		}
-		if a.total > 0 {
-			b.ClickRate = float64(a.clicked) / float64(a.total)
+			Total:       a.delivered,
+			Delivered:   a.delivered,
+			Clicked:     a.clicked,
+			Submitted:   a.submitted,
+			Reported:    a.reported,
+			ClickRate:   rateOf(a.clicked, a.delivered),
+			SampleSmall: a.delivered < MinReportSample,
 		}
 		parts := strings.SplitN(key, "\x00", 2)
 		if withDept {
@@ -97,7 +129,6 @@ func finalizeBuckets(acc map[string]*bucketAcc, withDept, withTech bool) []Break
 		}
 		out = append(out, b)
 	}
-	// Stable-ish order: department then technique then total desc via simple insertion sort.
 	for i := 0; i < len(out); i++ {
 		for j := i + 1; j < len(out); j++ {
 			if breakdownLess(out[j], out[i]) {
@@ -109,6 +140,12 @@ func finalizeBuckets(acc map[string]*bucketAcc, withDept, withTech bool) []Break
 }
 
 func breakdownLess(a, b BreakdownBucket) bool {
+	if a.SampleSmall != b.SampleSmall {
+		return !a.SampleSmall
+	}
+	if a.ClickRate != b.ClickRate {
+		return a.ClickRate > b.ClickRate
+	}
 	if a.Department != b.Department {
 		return a.Department < b.Department
 	}
@@ -118,44 +155,58 @@ func breakdownLess(a, b BreakdownBucket) bool {
 	return a.Total > b.Total
 }
 
-func addBucket(acc map[string]*bucketAcc, key string, clicked bool) {
+func addDeliveredBucket(acc map[string]*bucketAcc, key string, clicked, submitted, reported bool) {
 	a, ok := acc[key]
 	if !ok {
 		a = &bucketAcc{}
 		acc[key] = a
 	}
-	a.total++
+	a.delivered++
 	if clicked {
 		a.clicked++
+	}
+	if submitted {
+		a.submitted++
+	}
+	if reported {
+		a.reported++
 	}
 }
 
 // GetCampaignBreakdown aggregates click rates by department and technique for a user.
-// Campaigns with multiple techniques contribute the same result row to each technique bucket.
+// Only delivered recipients are counted. Campaigns with multiple techniques contribute
+// the same result row to each technique bucket, and once to the department bucket.
 func GetCampaignBreakdown(uid int64) (*CampaignBreakdown, error) {
 	rows := []breakdownResultRow{}
 	query := db.Table("results").
-		Select("results.department as department, results.status as status, campaigns.techniques as techniques").
+		Select("results.department as department, results.status as status, results.reported as reported, campaigns.techniques as techniques").
 		Joins("JOIN campaigns ON campaigns.id = results.campaign_id").
 		Where("results.user_id = ?", uid)
 	err := whereJoinedCampaignNotDeleted(query).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
+	return breakdownFromRows(rows), nil
+}
 
+func breakdownFromRows(rows []breakdownResultRow) *CampaignBreakdown {
 	byDept := map[string]*bucketAcc{}
 	byTech := map[string]*bucketAcc{}
 	byBoth := map[string]*bucketAcc{}
 
 	for _, row := range rows {
+		if !resultCountsAsDelivered(row.Status) {
+			continue
+		}
 		dept := normalizeDepartment(row.Department)
 		clicked := resultCountsAsClicked(row.Status)
+		submitted := resultCountsAsSubmitted(row.Status)
 		techs := parseTechniquesColumn(row.Techniques)
 
-		addBucket(byDept, dept, clicked)
+		addDeliveredBucket(byDept, dept, clicked, submitted, row.Reported)
 		for _, tech := range techs {
-			addBucket(byTech, tech, clicked)
-			addBucket(byBoth, dept+"\x00"+tech, clicked)
+			addDeliveredBucket(byTech, tech, clicked, submitted, row.Reported)
+			addDeliveredBucket(byBoth, dept+"\x00"+tech, clicked, submitted, row.Reported)
 		}
 	}
 
@@ -163,5 +214,5 @@ func GetCampaignBreakdown(uid int64) (*CampaignBreakdown, error) {
 		ByDepartment:         finalizeBuckets(byDept, true, false),
 		ByTechnique:          finalizeBuckets(byTech, false, true),
 		DepartmentXTechnique: finalizeBuckets(byBoth, true, true),
-	}, nil
+	}
 }

@@ -143,7 +143,7 @@ func (as *Server) TestSendingChannel(w http.ResponseWriter, r *http.Request) {
 		URL:       payload.URL,
 	}
 	if err := s.TestDeliver(req); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		sendFailureResponse(w, err, http.StatusBadRequest)
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "Test message sent successfully!"}, http.StatusOK)

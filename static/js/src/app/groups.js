@@ -250,7 +250,7 @@ function load() {
                     groupRows.push([
                         escapeHtml(group.name),
                         escapeHtml(group.num_targets),
-                        moment(group.modified_date).format('MMMM Do YYYY, h:mm:ss a'),
+                        formatDateTime(group.modified_date),
                         "<div class='pull-right'><button class='btn btn-primary' data-toggle='modal' data-backdrop='static' data-target='#modal' onclick='edit(" + group.id + ")' title='" + t("js.edit") + "' aria-label='" + t("js.edit") + "'>\
                     <i class='fa fa-pencil'></i>\
                     </button>\

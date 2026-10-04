@@ -112,6 +112,13 @@
                 <div class="form-group">
                     <label for="name">{{ T "campaigns.name" }}</label>
                     <input type="text" class="form-control" id="name" placeholder="{{ T "common.name" }}" autofocus>
+                    <label class="control-label" for="sending_trust">{{ T "campaigns.sending_trust" }}</label>
+                    <select class="form-control" id="sending_trust">
+                        <option value="">{{ T "campaigns.trust_choose" }}</option>
+                        <option value="customer_domain">{{ T "campaigns.trust_customer" }}</option>
+                        <option value="lookalike">{{ T "campaigns.trust_lookalike" }}</option>
+                    </select>
+                    <p class="help-block">{{ T "campaigns.trust_help" }}</p>
                     <label class="control-label" for="template">{{ T "campaigns.template" }}</label>
                     <select class="form-control" placeholder="Template Name" id="template" />
                     <option></option>

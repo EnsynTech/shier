@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	log "github.com/gophish/gophish/logger"
+	"github.com/gophish/gophish/models"
 )
 
 // JSONResponse attempts to set the status code, c, and marshal the given interface, d, into a response that
@@ -19,4 +20,13 @@ func JSONResponse(w http.ResponseWriter, d interface{}, c int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(c)
 	fmt.Fprintf(w, "%s", dj)
+}
+
+// sendFailureResponse returns the raw error and a stable reason code.
+func sendFailureResponse(w http.ResponseWriter, err error, status int) {
+	JSONResponse(w, models.Response{
+		Success: false,
+		Message: err.Error(),
+		Data:    map[string]string{"reason": models.ClassifySendError(err.Error())},
+	}, status)
 }

@@ -89,7 +89,7 @@ function sendTest() {
         $("#modal\\.flashes").empty().append("<div style=\"text-align:center\" class=\"alert alert-success\">\
         <i class=\"fa fa-check-circle\"></i> " + escapeHtml(data.message) + "</div>")
     }).error(function (data) {
-        modalError(data.responseJSON.message)
+        $("#modal\\.flashes").empty().append("<div class=\"alert alert-danger\">" + formatSendFailure(data) + "</div>")
     })
 }
 
@@ -152,7 +152,7 @@ function load() {
                         escapeHtml(ch.name),
                         escapeHtml(ch.channel),
                         escapeHtml(ch.endpoint_url),
-                        moment(ch.modified_date).format("MMMM Do YYYY, h:mm:ss a"),
+                        formatDateTime(ch.modified_date),
                         "<div class='pull-right'><span data-toggle='modal' data-backdrop='static' data-target='#modal'><button class='btn btn-primary' onclick='edit(" + ch.id + ")' title='" + t("js.edit") + "' aria-label='" + t("js.edit") + "'>\
                     <i class='fa fa-pencil'></i>\
                     </button></span>\

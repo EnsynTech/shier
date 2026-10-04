@@ -37,8 +37,66 @@ function sendTestEmail() {
         })
         .error(function (data) {
             $("#sendTestEmailModal\\.flashes").empty().append("<div style=\"text-align:center\" class=\"alert alert-danger\">\
-	    <i class=\"fa fa-exclamation-circle\"></i> " + escapeHtml(data.responseJSON.message) + "</div>")
+	    <i class=\"fa fa-exclamation-circle\"></i> " + formatSendFailure(data) + "</div>")
             $("#sendTestModalSubmit").html(btnHtml)
+        })
+}
+
+function sendingProfileSmtp() {
+    var headers = []
+    $.each($("#headersTable").DataTable().rows().data(), function (i, header) {
+        headers.push({
+            key: unescapeHtml(header[0]),
+            value: unescapeHtml(header[1]),
+        })
+    })
+    return {
+        from_address: $("#from").val(),
+        host: $("#host").val(),
+        username: $("#username").val(),
+        password: $("#password").val(),
+        ignore_cert_errors: $("#ignore_cert_errors").prop("checked"),
+        headers: headers,
+    }
+}
+
+function renderSmtpChecks(checks) {
+    var html = "<ul class='list-unstyled'>"
+    $.each(checks || [], function (_, check) {
+        var explain = ""
+        if (check.reason === "missing") {
+            explain = t("profiles.check_" + check.id + "_missing")
+        } else if (check.reason) {
+            explain = sendErrorLabel(check.reason)
+        }
+        html += "<li style='margin-top:8px;'><strong>" + escapeHtml(t("profiles.check_" + check.id)) +
+            "</strong> · " + escapeHtml(t("profiles.check_" + check.status))
+        if (explain) {
+            html += "<div>" + escapeHtml(explain) + "</div>"
+        }
+        if (check.detail) {
+            html += "<div class='text-muted'>" + escapeHtml(check.detail) + "</div>"
+        }
+        html += "</li>"
+    })
+    html += "</ul>"
+    $("#smtpCheckResults").html(html)
+}
+
+function checkSendingProfile() {
+    var button = $("#smtpCheckButton")
+    var original = button.html()
+    button.prop("disabled", true).html('<i class="fa fa-spinner fa-spin"></i> ' + escapeHtml(t("profiles.check_running")))
+    api.smtp_check({ smtp: sendingProfileSmtp() })
+        .success(function (data) {
+            renderSmtpChecks(data.data && data.data.checks)
+        })
+        .error(function (data) {
+            var message = (data.responseJSON && data.responseJSON.message) || t("send_error.unknown")
+            $("#smtpCheckResults").html("<div class='alert alert-danger'>" + escapeHtml(message) + "</div>")
+        })
+        .always(function () {
+            button.prop("disabled", false).html(original)
         })
 }
 
@@ -209,7 +267,7 @@ function load() {
                     profileRows.push([
                         escapeHtml(profile.name),
                         profile.interface_type,
-                        moment(profile.modified_date).format('MMMM Do YYYY, h:mm:ss a'),
+                        formatDateTime(profile.modified_date),
                         "<div class='pull-right'><span data-toggle='modal' data-backdrop='static' data-target='#modal'><button class='btn btn-primary' data-toggle='tooltip' data-placement='left' title='" + t("js.edit") + "' aria-label='" + t("js.edit") + "' onclick='edit(" + i + ")'>\
                     <i class='fa fa-pencil'></i>\
                     </button></span>\

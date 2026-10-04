@@ -61,6 +61,11 @@
                 </ul>
                 <ul class="nav navbar-nav navbar-right shier-nav-actions">
                     <li>
+                        <a class="shier-lang-toggle" href="/lang/{{if eq .Lang "en"}}zh{{else}}en{{end}}?next={{urlquery .Path}}" title="{{ T "common.language" }}" aria-label="{{ T "common.language" }}">
+                            <span class="{{if eq .Lang "zh"}}is-current{{end}}">中</span><span class="sep">/</span><span class="{{if eq .Lang "en"}}is-current{{end}}">EN</span>
+                        </a>
+                    </li>
+                    <li>
                         <a class="btn btn-primary shier-cta" href="/campaigns?new=1">{{ T "nav.launch" }}</a>
                     </li>
                     <li class="dropdown">
@@ -74,21 +79,22 @@
                             <li class="dropdown-header">{{ T "nav.settings_advanced" }}</li>
                             <li><a href="/templates">{{ T "nav.templates" }} <span class="text-muted">{{ T "nav.advanced" }}</span></a></li>
                             <li><a href="/landing_pages">{{ T "nav.landing_pages" }} <span class="text-muted">{{ T "nav.advanced" }}</span></a></li>
-                            <li class="dropdown-header">{{ T "nav.settings_account" }}</li>
-                            <li><a href="/settings">{{ T "nav.settings" }}</a></li>
                             {{if .ModifySystem}}
+                            <li class="dropdown-header">{{ T "nav.settings_account" }}</li>
                             <li><a href="/users">{{ T "nav.users" }} <span class="text-muted">{{ T "common.admin" }}</span></a></li>
                             <li><a href="/webhooks">{{ T "nav.webhooks" }} <span class="text-muted">{{ T "common.admin" }}</span></a></li>
                             {{end}}
                         </ul>
                     </li>
-                    <li>
-                        <div class="btn-group" id="navbar-dropdown">
-                            <a class="btn btn-default" href="/settings"><i class="fa fa-user"></i> {{.User.Username}}</a>
-                            <a class="btn btn-default" href="/logout" title="{{ T "common.logout" }}">
-                                <i class="fa fa-sign-out"></i>
-                            </a>
-                        </div>
+                    <li class="dropdown" id="navbar-dropdown">
+                        <a href="#" class="btn btn-default dropdown-toggle shier-user-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                            <i class="fa fa-user"></i> {{.User.Username}} <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-right shier-user-menu">
+                            <li><a href="/settings">{{ T "nav.settings" }}</a></li>
+                            <li class="divider"></li>
+                            <li><a href="/logout">{{ T "common.logout" }}</a></li>
+                        </ul>
                     </li>
                 </ul>
                 {{else}}

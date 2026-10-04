@@ -70,17 +70,22 @@ func (s *ModelsSuite) TestGetCampaignBreakdown(c *check.C) {
 		byDept[b.Department] = b
 	}
 	c.Assert(byDept["财务"].Total, check.Equals, int64(2))
+	c.Assert(byDept["财务"].Delivered, check.Equals, int64(2))
 	c.Assert(byDept["财务"].Clicked, check.Equals, int64(2))
+	c.Assert(byDept["财务"].Submitted, check.Equals, int64(1))
+	c.Assert(byDept["财务"].SampleSmall, check.Equals, true)
 	c.Assert(byDept["IT"].Total, check.Equals, int64(1))
 	c.Assert(byDept["IT"].Clicked, check.Equals, int64(0))
-	c.Assert(byDept[BreakdownEmptyDepartment].Total, check.Equals, int64(1))
+	_, hasEmpty := byDept[BreakdownEmptyDepartment]
+	c.Assert(hasEmpty, check.Equals, false)
+	c.Assert(bd.ByDepartment[0].Department, check.Equals, "财务")
 
 	foundQR := false
 	for _, b := range bd.ByTechnique {
 		if b.Technique == TechniqueQR {
 			foundQR = true
-			c.Assert(b.Total >= 4, check.Equals, true)
-			c.Assert(b.Clicked >= 2, check.Equals, true)
+			c.Assert(b.Total, check.Equals, int64(3))
+			c.Assert(b.Clicked, check.Equals, int64(2))
 		}
 	}
 	c.Assert(foundQR, check.Equals, true)

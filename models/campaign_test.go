@@ -223,6 +223,7 @@ func (s *ModelsSuite) TestPurgeCampaignRemovesRows(c *check.C) {
 
 func (s *ModelsSuite) TestGetCampaignBreakdownExcludesDeleted(c *check.C) {
 	campaign := s.createCampaign(c)
+	c.Assert(db.Table("results").Where("campaign_id = ?", campaign.Id).Update("status", EventSent).Error, check.IsNil)
 	before, err := GetCampaignBreakdown(campaign.UserId)
 	c.Assert(err, check.Equals, nil)
 	var beforeTotal int64

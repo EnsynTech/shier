@@ -42,6 +42,11 @@
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav navbar-right">
                     <li>
+                        <a class="btn btn-default shier-lang-toggle" href="/lang/{{if eq .Lang "en"}}zh{{else}}en{{end}}?next={{urlquery .Path}}" title="{{ T "common.language" }}" aria-label="{{ T "common.language" }}" style="margin-top:8px;">
+                            <span class="{{if eq .Lang "zh"}}is-current{{end}}">中</span><span class="sep">/</span><span class="{{if eq .Lang "en"}}is-current{{end}}">EN</span>
+                        </a>
+                    </li>
+                    <li>
                         <a id="login-button" href="/login">
                             <button type="button" class="btn btn-primary">{{ T "common.login" }}</button>
                         </a>

@@ -96,6 +96,11 @@
                     </table>
                     <button type="button" data-toggle="modal" data-backdrop="static" data-target="#sendTestEmailModal"
                         class="btn btn-primary"><i class="fa fa-envelope"></i> {{ T "profiles.send_test" }}</button>
+                    <button type="button" class="btn btn-default" id="smtpCheckButton" onclick="checkSendingProfile()">
+                        <i class="fa fa-stethoscope"></i> {{ T "profiles.check_smtp" }}
+                    </button>
+                    <p class="help-block">{{ T "profiles.check_from_server" }}</p>
+                    <div id="smtpCheckResults"></div>
                 </form>
             </div>
             <div class="modal-footer">

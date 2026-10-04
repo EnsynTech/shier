@@ -41,7 +41,9 @@ type Campaign struct {
 	Difficulty       int            `json:"difficulty"`
 	Industries       StringList     `json:"industries" gorm:"type:text"`
 	Techniques       StringList     `json:"techniques" gorm:"type:text"`
-	DeletedAt        *time.Time     `json:"deleted_at,omitempty" sql:"index"`
+	// SendingTrust is customer_domain or lookalike. Empty means unspecified.
+	SendingTrust string     `json:"sending_trust"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty" sql:"index"`
 }
 
 // CampaignResults is a struct representing the results from a campaign
@@ -55,6 +57,7 @@ type CampaignResults struct {
 	Difficulty     int        `json:"difficulty"`
 	Industries     StringList `json:"industries"`
 	Techniques     StringList `json:"techniques"`
+	SendingTrust   string     `json:"sending_trust"`
 }
 
 // CampaignSummaries is a struct representing the overview of campaigns
@@ -65,27 +68,34 @@ type CampaignSummaries struct {
 
 // CampaignSummary is a struct representing the overview of a single camaign
 type CampaignSummary struct {
-	Id            int64         `json:"id"`
-	CreatedDate   time.Time     `json:"created_date"`
-	LaunchDate    time.Time     `json:"launch_date"`
-	SendByDate    time.Time     `json:"send_by_date"`
-	CompletedDate time.Time     `json:"completed_date"`
-	Status        string        `json:"status"`
-	Name          string        `json:"name"`
-	Stats         CampaignStats `json:"stats"`
-	DeletedAt     *time.Time    `json:"deleted_at,omitempty"`
+	Id             int64         `json:"id"`
+	CreatedDate    time.Time     `json:"created_date"`
+	LaunchDate     time.Time     `json:"launch_date"`
+	SendByDate     time.Time     `json:"send_by_date"`
+	CompletedDate  time.Time     `json:"completed_date"`
+	Status         string        `json:"status"`
+	Name           string        `json:"name"`
+	Stats          CampaignStats `json:"stats"`
+	ScenarioPackId string        `json:"scenario_pack_id"`
+	Difficulty     int           `json:"difficulty"`
+	Industries     StringList    `json:"industries"`
+	Techniques     StringList    `json:"techniques"`
+	SendingTrust   string        `json:"sending_trust"`
+	DeletedAt      *time.Time    `json:"deleted_at,omitempty"`
 }
 
 // CampaignStats is a struct representing the statistics for a single campaign
 type CampaignStats struct {
-	Total         int64 `json:"total"`
-	EmailsSent    int64 `json:"sent"`
-	OpenedEmail   int64 `json:"opened"`
-	ClickedLink   int64 `json:"clicked"`
-	SubmittedData int64 `json:"submitted_data"`
-	EmailReported int64 `json:"email_reported"`
-	EmailReplied  int64 `json:"email_replied"`
-	Error         int64 `json:"error"`
+	Total           int64    `json:"total"`
+	EmailsSent      int64    `json:"sent"`
+	OpenedEmail     int64    `json:"opened"`
+	ClickedLink     int64    `json:"clicked"`
+	SubmittedData   int64    `json:"submitted_data"`
+	EmailReported   int64    `json:"email_reported"`
+	EmailReplied    int64    `json:"email_replied"`
+	Error           int64    `json:"error"`
+	Retrying        int64    `json:"retrying"`
+	SendSuccessRate *float64 `json:"send_success_rate,omitempty"`
 }
 
 // Event contains the fields for an event
@@ -113,7 +123,8 @@ type EventDetails struct {
 // EventError is a struct that wraps an error that occurs when sending an
 // email to a recipient
 type EventError struct {
-	Error string `json:"error"`
+	Error  string `json:"error"`
+	Reason string `json:"reason,omitempty"`
 }
 
 // ErrCampaignNameNotSpecified indicates there was no template given by the user
@@ -155,6 +166,16 @@ var ErrCampaignNotFound = errors.New("campaign not found")
 
 // ErrPurgeConfirmationRequired indicates a purge request lacked confirm=purge.
 var ErrPurgeConfirmationRequired = errors.New("purge_confirmation_required")
+
+const (
+	// SendingTrustCustomerDomain is a drill sent from the customer's own domain.
+	SendingTrustCustomerDomain = "customer_domain"
+	// SendingTrustLookalike is a drill sent from a lookalike domain.
+	SendingTrustLookalike = "lookalike"
+)
+
+// ErrInvalidSendingTrust is returned when sending_trust is not empty and not a known value.
+var ErrInvalidSendingTrust = errors.New("sending_trust must be customer_domain or lookalike")
 
 // PurgeConfirmValue is the request body value required to permanently delete a campaign.
 const PurgeConfirmValue = "purge"
@@ -222,7 +243,23 @@ func (c *Campaign) Validate() error {
 	if !c.SendByDate.IsZero() && !c.LaunchDate.IsZero() && c.SendByDate.Before(c.LaunchDate) {
 		return ErrInvalidSendByDate
 	}
+	trust, err := NormalizeSendingTrust(c.SendingTrust)
+	if err != nil {
+		return err
+	}
+	c.SendingTrust = trust
 	return nil
+}
+
+// NormalizeSendingTrust trims a sending-trust value. Empty is allowed.
+func NormalizeSendingTrust(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	switch raw {
+	case "", SendingTrustCustomerDomain, SendingTrustLookalike:
+		return raw, nil
+	default:
+		return "", ErrInvalidSendingTrust
+	}
 }
 
 // UpdateStatus changes the campaign status appropriately
@@ -268,6 +305,7 @@ func (c *Campaign) getDetails() error {
 		log.Warnf("%s: events not found for campaign", err)
 		return err
 	}
+	AnnotateEvents(c.Events)
 	err = db.Table("templates").Where("id=?", c.TemplateId).Find(&c.Template).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
@@ -406,7 +444,19 @@ func getCampaignStats(cid int64) (CampaignStats, error) {
 	// Every opened email event implies the email was sent
 	s.EmailsSent += s.OpenedEmail
 	err = query.Where("status=?", Error).Count(&s.Error).Error
-	return s, err
+	if err != nil {
+		return s, err
+	}
+	err = query.Where("status=?", StatusRetry).Count(&s.Retrying).Error
+	if err != nil {
+		return s, err
+	}
+	finished := s.EmailsSent + s.Error
+	if finished > 0 {
+		rate := rateOf(s.EmailsSent, finished)
+		s.SendSuccessRate = &rate
+	}
+	return s, nil
 }
 
 func whereCampaignNotDeleted(query *gorm.DB) *gorm.DB {
@@ -440,7 +490,7 @@ func GetCampaignSummaries(uid int64) (CampaignSummaries, error) {
 	cs := []CampaignSummary{}
 	// Get the basic campaign information
 	query := whereCampaignNotDeleted(db.Table("campaigns").Where("user_id = ?", uid))
-	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status")
+	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status, scenario_pack_id, difficulty, industries, techniques, sending_trust")
 	err := query.Scan(&cs).Error
 	if err != nil {
 		log.Error(err)
@@ -463,7 +513,7 @@ func GetCampaignSummaries(uid int64) (CampaignSummaries, error) {
 func GetCampaignSummary(id int64, uid int64) (CampaignSummary, error) {
 	cs := CampaignSummary{}
 	query := whereCampaignNotDeleted(db.Table("campaigns").Where("user_id = ? AND id = ?", uid, id))
-	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status")
+	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status, scenario_pack_id, difficulty, industries, techniques, sending_trust")
 	err := query.Scan(&cs).Error
 	if err != nil {
 		log.Error(err)
@@ -546,6 +596,7 @@ func GetCampaignResults(id int64, uid int64) (CampaignResults, error) {
 		log.Errorf("%s: events not found for campaign", err)
 		return cr, err
 	}
+	AnnotateEvents(cr.Events)
 	return cr, err
 }
 

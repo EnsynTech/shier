@@ -63,7 +63,40 @@ function t(key) {
 }
 window.t = t
 
+// Display timestamps follow the page language. Moment in this build has no
+// Chinese locale, so Chinese uses numeric tokens that do not need one.
+function dateTimeFormat(withSeconds) {
+    if (window.GophishLang === "zh") {
+        return withSeconds === false ? "YYYY年M月D日 HH:mm" : "YYYY年M月D日 HH:mm:ss"
+    }
+    return withSeconds === false ? "MMMM Do YYYY, h:mm a" : "MMMM Do YYYY, h:mm:ss a"
+}
+
+function formatDateTime(value, withSeconds) {
+    if (value == null || value === "") {
+        return ""
+    }
+    var m = moment.isMoment(value) ? value.clone() : moment(value)
+    if (!m.isValid()) {
+        return ""
+    }
+    return m.format(dateTimeFormat(withSeconds))
+}
+window.dateTimeFormat = dateTimeFormat
+window.formatDateTime = formatDateTime
+
 /** Translate API status strings for display. Keys stay English for matching. */
+function sendingTrustLabel(value) {
+    if (value === "customer_domain") {
+        return t("campaigns.trust_customer")
+    }
+    if (value === "lookalike") {
+        return t("campaigns.trust_lookalike")
+    }
+    return t("campaigns.trust_unspecified")
+}
+window.sendingTrustLabel = sendingTrustLabel
+
 function statusLabel(status) {
     var map = {
         "Email Sent": "js.status_email_sent",
@@ -87,6 +120,38 @@ function statusLabel(status) {
     return status
 }
 window.statusLabel = statusLabel
+
+function sendErrorLabel(reason) {
+    if (!reason) {
+        return ""
+    }
+    var key = "send_error." + reason
+    var label = t(key)
+    if (label === key) {
+        return ""
+    }
+    return label
+}
+window.sendErrorLabel = sendErrorLabel
+
+function formatSendFailure(data) {
+    var body = (data && data.responseJSON) || {}
+    var reason = body.data && body.data.reason
+    var raw = body.message || ""
+    var label = sendErrorLabel(reason)
+    var html = ""
+    if (label) {
+        html += "<div>" + escapeHtml(label) + "</div>"
+    }
+    if (raw) {
+        html += "<div class='text-muted' style='margin-top:6px;'>" + escapeHtml(raw) + "</div>"
+    }
+    if (!html) {
+        html = escapeHtml(t("send_error.unknown"))
+    }
+    return html
+}
+window.formatSendFailure = formatSendFailure
 
 function unescapeHtml(html) {
     return $("<div/>").html(html).text()
@@ -122,6 +187,12 @@ var api = {
         // breakdown() - Queries the API for GET /campaigns/breakdown
         breakdown: function () {
             return query("/campaigns/breakdown", "GET", {}, false)
+        },
+        brief: function (ids) {
+            return query("/campaigns/brief?ids=" + encodeURIComponent(ids), "GET", {}, false)
+        },
+        compare: function (ids) {
+            return query("/campaigns/compare?ids=" + encodeURIComponent(ids), "GET", {}, false)
         },
         // trash() - Queries the API for GET /campaigns/trash
         trash: function () {
@@ -377,6 +448,9 @@ var api = {
     send_test_email: function (req) {
         return query("/util/send_test_email", "POST", req, true)
     },
+    smtp_check: function (req) {
+        return query("/util/smtp_check", "POST", req, true)
+    },
     reset: function () {
         return query("/reset", "POST", {}, true)
     }
@@ -580,7 +654,7 @@ $(document).ready(function () {
             $this.addClass('active');
         }
     })
-    $.fn.dataTable.moment('MMMM Do YYYY, h:mm:ss a');
+    $.fn.dataTable.moment(dateTimeFormat(true));
     // Setup tooltips
     $('[data-toggle="tooltip"]').tooltip()
 });

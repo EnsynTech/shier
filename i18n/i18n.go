@@ -28,6 +28,9 @@ var (
 // DefaultLang is used when no preference is found.
 const DefaultLang = LangZH
 
+// LangCookie stores an explicit 中/EN choice and overrides Accept-Language.
+const LangCookie = "shier_lang"
+
 func localeDirs() []string {
 	return []string{
 		filepath.Join("i18n", "locales"),
@@ -104,8 +107,16 @@ func matchLang(tag string) string {
 	return ""
 }
 
-// FromRequest resolves the language from the browser Accept-Language header.
+// FromRequest resolves the language from the shier_lang cookie, then Accept-Language.
 func FromRequest(r *http.Request) string {
+	if c, err := r.Cookie(LangCookie); err == nil {
+		switch strings.ToLower(strings.TrimSpace(c.Value)) {
+		case LangEN:
+			return LangEN
+		case LangZH:
+			return LangZH
+		}
+	}
 	accept := r.Header.Get("Accept-Language")
 	if accept == "" {
 		return DefaultLang
@@ -184,6 +195,19 @@ func Catalog(lang string) map[string]string {
 		out[k] = v
 	}
 	return out
+}
+
+// SetLangCookie records an explicit language choice for one year.
+func SetLangCookie(w http.ResponseWriter, lang string, secure bool) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     LangCookie,
+		Value:    lang,
+		Path:     "/",
+		MaxAge:   365 * 24 * 60 * 60,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+	})
 }
 
 // FuncMap returns a template FuncMap with a T function bound to lang.

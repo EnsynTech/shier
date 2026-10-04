@@ -127,8 +127,33 @@ func (as *Server) SendTestEmail(w http.ResponseWriter, r *http.Request) {
 	err = as.worker.SendTestEmail(s)
 	if err != nil {
 		log.Error(err)
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		sendFailureResponse(w, err, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "Email Sent"}, http.StatusOK)
+}
+
+// SMTPCheck dials a sending profile and looks up SPF and DMARC without sending mail.
+func (as *Server) SMTPCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
+		return
+	}
+	req := struct {
+		SMTP models.SMTP `json:"smtp"`
+	}{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: "Error decoding JSON Request"}, http.StatusBadRequest)
+		return
+	}
+	checks, err := models.CheckSMTP(&req.SMTP)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	JSONResponse(w, models.Response{
+		Success: true,
+		Message: "ok",
+		Data:    map[string]interface{}{"checks": checks},
+	}, http.StatusOK)
 }

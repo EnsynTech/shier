@@ -111,6 +111,60 @@ body.shier-app {
   padding: 19px 12px !important;
 }
 
+.shier-nav-actions > li > a.shier-user-toggle {
+  margin: 12px 0 12px 8px !important;
+  padding: 8px 14px !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--line) !important;
+  background: #fff !important;
+  line-height: 1.2;
+}
+
+.shier-user-menu {
+  min-width: 168px;
+  padding: 8px 0;
+  border-radius: 12px;
+  border-color: var(--line);
+}
+
+.shier-user-menu > li > a {
+  padding: 8px 16px;
+}
+
+.shier-user-menu > .divider {
+  margin: 6px 0;
+  background-color: var(--line);
+}
+
+.shier-lang-toggle {
+  margin: 12px 8px 12px 0 !important;
+  padding: 8px 12px !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--line) !important;
+  background: #fff !important;
+  color: var(--text-3) !important;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.shier-lang-toggle:hover,
+.shier-lang-toggle:focus {
+  color: var(--text) !important;
+  background: var(--paper) !important;
+  text-decoration: none;
+}
+
+.shier-lang-toggle .is-current {
+  color: var(--moss-deep);
+}
+
+.shier-lang-toggle .sep {
+  margin: 0 4px;
+  color: var(--text-3);
+  font-weight: 400;
+}
+
 .shier-cta {
   margin: 12px 8px 12px 0 !important;
   padding: 8px 14px !important;
@@ -150,13 +204,7 @@ body.shier-app {
 }
 
 #navbar-dropdown {
-  margin: 12px 0 12px 8px;
-}
-
-#navbar-dropdown .btn-default {
-  border-color: var(--line);
-  color: var(--text-2);
-  background: #fff;
+  position: relative;
 }
 
 .btn-primary {
@@ -422,6 +470,70 @@ body.shier-app {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 18px;
+}
+
+.shier-rate-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.shier-stats.dense {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  margin-top: 12px;
+}
+
+.shier-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+  margin-bottom: 12px;
+}
+
+.shier-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  font-weight: 500;
+}
+
+.shier-check input {
+  margin-top: 4px;
+}
+
+.shier-report-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+
+.shier-brief-list {
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+
+@media print {
+  .shier-topnav,
+  .no-print,
+  .navbar {
+    display: none !important;
+  }
+
+  body.shier-app {
+    padding-top: 0;
+    background: #fff;
+  }
+
+  .shier-main {
+    max-width: none;
+    padding: 0;
+  }
+
+  .shier-panel,
+  .shier-chart-box {
+    break-inside: avoid;
+  }
 }
 
 .map-collapsed {

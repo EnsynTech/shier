@@ -4,17 +4,21 @@
         <h1 class="page-header">{{ T "title.reports" }}</h1>
         <p class="text-muted">{{ T "reports.lead" }}</p>
     </div>
+    <section class="shier-panel">
+        <h2>{{ T "reports.select_title" }}</h2>
+        <p class="text-muted">{{ T "reports.select_help" }}</p>
+        <div id="reportCampaignList" class="shier-check-list"></div>
+        <p id="reportCampaignEmpty" class="text-muted" style="display:none;">{{ T "reports.no_campaigns" }}</p>
+        <div class="shier-report-actions">
+            <button type="button" class="btn btn-primary" id="buildBriefBtn">{{ T "reports.generate_brief" }}</button>
+            <button type="button" class="btn btn-default" id="compareBtn">{{ T "reports.compare" }}</button>
+        </div>
+    </section>
     <div class="shier-report-grid">
-        <article class="shier-report-card">
-            <h3>{{ T "reports.brief_title" }}</h3>
-            <p class="text-muted">{{ T "reports.brief_help" }}</p>
-            <a class="btn btn-primary" href="/">{{ T "reports.brief_cta" }}</a>
-        </article>
         <article class="shier-report-card">
             <h3>{{ T "reports.trend_title" }}</h3>
             <p class="text-muted">{{ T "reports.trend_help" }}</p>
             <div id="reportTrendChart" class="shier-chart-box"></div>
-            <a class="btn btn-default" href="/">{{ T "reports.brief_cta" }}</a>
         </article>
         <article class="shier-report-card">
             <h3>{{ T "reports.dept_title" }}</h3>

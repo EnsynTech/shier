@@ -10,10 +10,10 @@ func TestT(t *testing.T) {
 	if err := LoadError(); err != nil {
 		t.Fatalf("load locales: %v", err)
 	}
-	if got := T(LangZH, "nav.dashboard"); got != "仪表盘" {
+	if got := T(LangZH, "nav.dashboard"); got != "工作台" {
 		t.Fatalf("zh nav.dashboard = %q", got)
 	}
-	if got := T(LangEN, "nav.dashboard"); got != "Dashboard" {
+	if got := T(LangEN, "nav.dashboard"); got != "Workbench" {
 		t.Fatalf("en nav.dashboard = %q", got)
 	}
 	if got := T(LangEN, "missing.key"); got != "missing.key" {
@@ -45,5 +45,19 @@ func TestFromRequest(t *testing.T) {
 	r4.Header.Set("Accept-Language", "zh-CN;q=0.5,en-US;q=0.9")
 	if got := FromRequest(r4); got != LangEN {
 		t.Fatalf("q-value preference = %q", got)
+	}
+
+	r5 := httptest.NewRequest(http.MethodGet, "/", nil)
+	r5.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	r5.AddCookie(&http.Cookie{Name: LangCookie, Value: LangZH})
+	if got := FromRequest(r5); got != LangZH {
+		t.Fatalf("cookie overrides accept-language = %q", got)
+	}
+
+	r6 := httptest.NewRequest(http.MethodGet, "/", nil)
+	r6.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
+	r6.AddCookie(&http.Cookie{Name: LangCookie, Value: "fr"})
+	if got := FromRequest(r6); got != LangZH {
+		t.Fatalf("invalid cookie falls through = %q", got)
 	}
 }

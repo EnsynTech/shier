@@ -1,0 +1,14 @@
+{{define "body"}}
+<div class="container-fluid shier-main main">
+    <div class="shier-report-actions no-print">
+        <a class="btn btn-default" href="/reports">{{ T "reports.back" }}</a>
+    </div>
+    <h1 class="page-header" id="compareTitle">{{ T "title.reports_compare" }}</h1>
+    <div id="compareRoot">
+        <p class="text-muted" id="compareLoading">{{ T "results.refresh" }}</p>
+    </div>
+</div>
+{{end}}
+{{define "scripts"}}
+<script src="/js/dist/app/reports.min.js"></script>
+{{end}}

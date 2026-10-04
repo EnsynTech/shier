@@ -59,6 +59,34 @@ func (as *Server) CampaignsSummary(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CampaignsBrief returns a leadership summary for selected completed campaigns.
+func (as *Server) CampaignsBrief(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+	brief, err := models.GetCampaignBrief(ctx.Get(r, "user_id").(int64), r.URL.Query().Get("ids"))
+	if err != nil {
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	JSONResponse(w, brief, http.StatusOK)
+}
+
+// CampaignsCompare returns a side-by-side view of 2 to 4 campaigns.
+func (as *Server) CampaignsCompare(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+	cmp, err := models.GetCampaignCompare(ctx.Get(r, "user_id").(int64), r.URL.Query().Get("ids"))
+	if err != nil {
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	JSONResponse(w, cmp, http.StatusOK)
+}
+
 // CampaignsBreakdown returns department × technique click-rate aggregates.
 func (as *Server) CampaignsBreakdown(w http.ResponseWriter, r *http.Request) {
 	switch {

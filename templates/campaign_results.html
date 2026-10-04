@@ -44,31 +44,41 @@
 
         <section class="shier-panel" id="resultsVerdict">
             <h2>{{ T "results.verdict_title" }}</h2>
-            <div class="shier-risk-side" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+            <p class="text-muted" id="verdictDenominator">{{ T "results.denominator" }}</p>
+            <div class="shier-risk-side shier-rate-row">
+                <div class="shier-mini">
+                    <p class="k">{{ T "results.send_success_rate" }}</p>
+                    <p class="v" id="verdictSendRate">—</p>
+                </div>
                 <div class="shier-mini">
                     <p class="k">{{ T "results.phish_prone" }}</p>
                     <p class="v" id="verdictPhishProne">—</p>
                 </div>
                 <div class="shier-mini">
-                    <p class="k">{{ T "results.clicked" }}</p>
-                    <p class="v" id="verdictClicked">—</p>
+                    <p class="k">{{ T "results.submit_rate" }}</p>
+                    <p class="v" id="verdictSubmitRate">—</p>
                 </div>
                 <div class="shier-mini">
-                    <p class="k">{{ T "results.submitted" }}</p>
-                    <p class="v" id="verdictSubmitted">—</p>
-                </div>
-                <div class="shier-mini">
-                    <p class="k">{{ T "results.reported" }}</p>
-                    <p class="v" id="verdictReported">—</p>
+                    <p class="k">{{ T "results.report_rate" }}</p>
+                    <p class="v" id="verdictReportRate">—</p>
                 </div>
             </div>
+            <div class="shier-stats dense" id="verdictCounts">
+                <div class="shier-stat"><p class="k">{{ T "results.sent" }}</p><p class="v" id="verdictSent">—</p></div>
+                <div class="shier-stat"><p class="k">{{ T "results.opened" }}</p><p class="v" id="verdictOpened">—</p></div>
+                <div class="shier-stat"><p class="k">{{ T "results.clicked" }}</p><p class="v" id="verdictClicked">—</p></div>
+                <div class="shier-stat"><p class="k">{{ T "results.submitted" }}</p><p class="v" id="verdictSubmitted">—</p></div>
+                <div class="shier-stat"><p class="k">{{ T "results.reported" }}</p><p class="v" id="verdictReported">—</p></div>
+                <div class="shier-stat"><p class="k">{{ T "results.replied" }}</p><p class="v" id="verdictReplied">—</p></div>
+                <div class="shier-stat"><p class="k">{{ T "results.errors" }}</p><p class="v" id="verdictErrors">—</p></div>
+            </div>
+            <p class="text-muted" id="verdictSendNotes" style="margin-top:8px;"></p>
             <p class="verdict" id="verdictText" style="margin-top:12px;"></p>
         </section>
 
         <section class="shier-panel">
             <h2>{{ T "results.funnel_title" }}</h2>
             <div class="shier-funnel" id="resultsFunnel"></div>
-            <div id="timeline_chart" style="margin-top:16px;"></div>
             <div style="display:none;">
                 <div id="sent_chart"></div>
                 <div id="opened_chart"></div>
@@ -85,9 +95,12 @@
                 <thead>
                     <tr>
                         <th>{{ T "common.department" }}</th>
-                        <th>{{ T "results.dept_total" }}</th>
+                        <th>{{ T "results.dept_delivered" }}</th>
                         <th>{{ T "results.dept_clicked" }}</th>
-                        <th>{{ T "results.dept_click_rate" }}</th>
+                        <th>{{ T "results.dept_submitted" }}</th>
+                        <th>{{ T "results.dept_reported" }}</th>
+                        <th>{{ T "results.phish_prone" }}</th>
+                        <th>{{ T "results.sample_small" }}</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -95,6 +108,26 @@
         </section>
 
         <section class="shier-panel">
+            <h2>{{ T "results.high_risk_title" }}</h2>
+            <p class="text-muted">{{ T "results.high_risk_help" }}</p>
+            <table id="highRiskTable" class="table table-condensed">
+                <thead>
+                    <tr>
+                        <th>{{ T "results.csv_name" }}</th>
+                        <th>{{ T "common.email" }}</th>
+                        <th>{{ T "common.department" }}</th>
+                        <th>{{ T "results.csv_status" }}</th>
+                        <th>{{ T "results.reported" }}</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section class="shier-panel">
+            <button type="button" class="btn btn-default" id="toggleResultsDetails">{{ T "results.details_toggle" }}</button>
+            <div id="resultsDetails" style="display:none;margin-top:12px;">
+            <div id="timeline_chart" style="margin-bottom:16px;"></div>
             <h2>{{ T "results.details" }}</h2>
             <div class="table-responsive">
             <table id="resultsTable" class="table nowrap" style="width:100%">
@@ -115,6 +148,7 @@
                 <tbody>
                 </tbody>
             </table>
+            </div>
             </div>
         </section>
 

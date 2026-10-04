@@ -132,10 +132,15 @@ function launch() {
                 // Validate our fields
                 var send_by_date = $("#send_by_date").val()
                 if (send_by_date != "") {
-                    send_by_date = moment(send_by_date, "MMMM Do YYYY, h:mm a").utc().format()
+                    send_by_date = moment(send_by_date, dateTimeFormat(false)).utc().format()
                 }
                 var steps = collectCampaignSteps()
                 var channel = $("#channel").val() || "email"
+                var sendingTrust = $("#sending_trust").val()
+                if (!sendingTrust) {
+                    reject(t("campaigns.trust_required"))
+                    return
+                }
                 campaign = {
                     name: $("#name").val(),
                     channel: channel,
@@ -152,9 +157,10 @@ function launch() {
                     sending_channel: {
                         name: ""
                     },
-                    launch_date: moment($("#launch_date").val(), "MMMM Do YYYY, h:mm a").utc().format(),
+                    launch_date: moment($("#launch_date").val(), dateTimeFormat(false)).utc().format(),
                     send_by_date: send_by_date || null,
                     groups: groups,
+                    sending_trust: sendingTrust,
                 }
                 if (channel === "email") {
                     campaign.smtp = {
@@ -229,7 +235,7 @@ function sendTestEmail() {
         })
         .error(function (data) {
             $("#sendTestEmailModal\\.flashes").empty().append("<div style=\"text-align:center\" class=\"alert alert-danger\">\
-            <i class=\"fa fa-exclamation-circle\"></i> " + data.responseJSON.message + "</div>")
+            <i class=\"fa fa-exclamation-circle\"></i> " + formatSendFailure(data) + "</div>")
             $("#sendTestModalSubmit").html(btnHtml)
         })
 }
@@ -237,6 +243,7 @@ function sendTestEmail() {
 function dismiss() {
     $("#modal\\.flashes").empty();
     $("#name").val("");
+    $("#sending_trust").val("");
     $("#template").val("").change();
     $("#page").val("").change();
     $("#url").val("");
@@ -412,11 +419,11 @@ function loadTrashCampaigns() {
             }
             var rows = []
             $.each(trashCampaigns, function (_, campaign) {
-                var deletedAt = campaign.deleted_at ? moment(campaign.deleted_at).format("MMMM Do YYYY, h:mm:ss a") : ""
+                var deletedAt = campaign.deleted_at ? formatDateTime(campaign.deleted_at) : ""
                 rows.push([
                     escapeHtml(campaign.name),
                     deletedAt,
-                    "<span class=\"label label-default\">" + escapeHtml(campaign.status) + "</span>",
+                    "<span class=\"label label-default\">" + escapeHtml(statusLabel(campaign.status)) + "</span>",
                     "<div class='pull-right'><button class='btn btn-primary' onclick='restoreCampaign(" + campaign.id + ")' data-toggle='tooltip' data-placement='left' title='" + t("js.restore") + "' aria-label='" + t("js.restore") + "'>\
                     <i class='fa fa-undo'></i>\
                     </button>\
@@ -617,7 +624,7 @@ $(document).ready(function () {
         },
         "showTodayButton": true,
         "defaultDate": moment(),
-        "format": "MMMM Do YYYY, h:mm a"
+        "format": dateTimeFormat(false)
     })
     $("#send_by_date").datetimepicker({
         "widgetPositioning": {
@@ -625,7 +632,7 @@ $(document).ready(function () {
         },
         "showTodayButton": true,
         "useCurrent": false,
-        "format": "MMMM Do YYYY, h:mm a"
+        "format": dateTimeFormat(false)
     })
     // Setup multiple modals
     // Code based on http://miles-by-motorcycle.com/static/bootstrap-modal/index.html
@@ -681,10 +688,10 @@ $(document).ready(function () {
 
                 var launchDate
                 if (moment(campaign.launch_date).isAfter(moment())) {
-                    launchDate = "Scheduled to start: " + moment(campaign.launch_date).format("MMMM Do YYYY, h:mm:ss a")
+                    launchDate = t("js.scheduled_to_start") + formatDateTime(campaign.launch_date)
                     var quickStats = launchDate + "<br><br>" + "Number of recipients: " + campaign.stats.total
                 } else {
-                    launchDate = "Launch Date: " + moment(campaign.launch_date).format("MMMM Do YYYY, h:mm:ss a")
+                    launchDate = t("js.launch_date_at") + formatDateTime(campaign.launch_date)
                     var quickStats = launchDate + "<br><br>" + "Number of recipients: " + campaign.stats.total + "<br><br>" + "Emails opened: " + campaign.stats.opened + "<br><br>" + "Emails clicked: " + campaign.stats.clicked + "<br><br>" + "Submitted Credentials: " + campaign.stats.submitted_data + "<br><br>" + "Errors : " + campaign.stats.error + "<br><br>" + "Reported : " + campaign.stats.email_reported + "<br><br>" + "Replied : " + (campaign.stats.email_replied || 0)
                 }
 
@@ -705,8 +712,8 @@ $(document).ready(function () {
                 }
                 var row = [
                     escapeHtml(campaign.name),
-                    moment(campaign.created_date).format("MMMM Do YYYY, h:mm:ss a"),
-                    "<span class=\"label " + label + "\" data-toggle=\"tooltip\" data-placement=\"right\" data-html=\"true\" title=\"" + quickStats + "\">" + campaign.status + "</span>",
+                    formatDateTime(campaign.created_date),
+                    "<span class=\"label " + label + "\" data-toggle=\"tooltip\" data-placement=\"right\" data-html=\"true\" title=\"" + quickStats + "\">" + escapeHtml(statusLabel(campaign.status)) + "</span>",
                     actions
                 ]
                 if (campaign.status == "Completed") {

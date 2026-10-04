@@ -149,10 +149,10 @@ function generateTimelineChart(campaigns) {
     var values = []
     var ids = []
     $.each(recent, function (i, campaign) {
-        var total = (campaign.stats && campaign.stats.total) || 0
+        var delivered = (campaign.stats && campaign.stats.sent) || 0
         var clicked = (campaign.stats && campaign.stats.clicked) || 0
         categories.push(campaign.name || ("#" + campaign.id))
-        values.push(pct(clicked, total))
+        values.push(pct(clicked, delivered))
         ids.push(campaign.id)
     })
     Highcharts.chart("overview_chart", {
@@ -221,7 +221,13 @@ function generateDepartmentChart(rows) {
         credits: { enabled: false },
         legend: { enabled: false },
         xAxis: {
-            categories: data.map(function (r) { return r.department }),
+            categories: data.map(function (r) {
+                var name = r.department
+                if (r.sample_small) {
+                    name += " (" + t("results.sample_small") + ")"
+                }
+                return name
+            }),
             title: { text: null }
         },
         yAxis: {
@@ -231,7 +237,7 @@ function generateDepartmentChart(rows) {
         },
         series: [{
             name: t("results.dept_click_rate"),
-            data: data.map(function (r) { return pct(r.clicked || 0, r.total || 0) || Math.round((r.click_rate || 0) * 1000) / 10 }),
+            data: data.map(function (r) { return Math.round((r.click_rate || 0) * 1000) / 10 }),
             color: "#1b7a55"
         }]
     })
@@ -282,15 +288,15 @@ $(document).ready(function () {
                 });
                 campaignRows = []
                 $.each(campaigns, function (i, campaign) {
-                    var campaign_date = moment(campaign.created_date).format('MMMM Do YYYY, h:mm:ss a')
+                    var campaign_date = formatDateTime(campaign.created_date)
                     var label = statuses[campaign.status].label || "label-default";
                     //section for tooltips on the status of a campaign to show some quick stats
                     var launchDate;
                     if (moment(campaign.launch_date).isAfter(moment())) {
-                        launchDate = "Scheduled to start: " + moment(campaign.launch_date).format('MMMM Do YYYY, h:mm:ss a')
+                        launchDate = t("js.scheduled_to_start") + formatDateTime(campaign.launch_date)
                         var quickStats = launchDate + "<br><br>" + "Number of recipients: " + campaign.stats.total
                     } else {
-                        launchDate = "Launch Date: " + moment(campaign.launch_date).format('MMMM Do YYYY, h:mm:ss a')
+                        launchDate = t("js.launch_date_at") + formatDateTime(campaign.launch_date)
                         var quickStats = launchDate + "<br><br>" + "Number of recipients: " + campaign.stats.total + "<br><br>" + "Emails opened: " + campaign.stats.opened + "<br><br>" + "Emails clicked: " + campaign.stats.clicked + "<br><br>" + "Submitted Credentials: " + campaign.stats.submitted_data + "<br><br>" + "Errors : " + campaign.stats.error + "<br><br>" + "Reported : " + campaign.stats.email_reported + "<br><br>" + "Replied : " + (campaign.stats.email_replied || 0)
                     }
                     // Add it to the list
@@ -302,7 +308,7 @@ $(document).ready(function () {
                         campaign.stats.clicked,
                         campaign.stats.submitted_data,
                         campaign.stats.email_reported,
-                        "<span class=\"label " + label + "\" data-toggle=\"tooltip\" data-placement=\"right\" data-html=\"true\" title=\"" + quickStats + "\">" + campaign.status + "</span>",
+                        "<span class=\"label " + label + "\" data-toggle=\"tooltip\" data-placement=\"right\" data-html=\"true\" title=\"" + quickStats + "\">" + escapeHtml(statusLabel(campaign.status)) + "</span>",
                         "<div class='pull-right'><a class='btn btn-primary' href='/campaigns/" + campaign.id + "' data-toggle='tooltip' data-placement='left' title='View Results'>\
                     <i class='fa fa-bar-chart'></i>\
                     </a>\
@@ -388,7 +394,8 @@ function renderDepartmentTechniqueMatrix(data) {
                 body += "<td class='text-muted'>—</td>"
             } else {
                 var rate = ((cell.click_rate || 0) * 100).toFixed(1) + "%"
-                body += "<td title='" + cell.clicked + "/" + cell.total + "'>" + rate + "</td>"
+                var note = cell.sample_small ? " " + t("results.sample_small") : ""
+                body += "<td title='" + cell.clicked + "/" + (cell.delivered || cell.total) + note + "'>" + rate + "</td>"
             }
         })
         body += "</tr>"

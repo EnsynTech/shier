@@ -40,6 +40,12 @@ type AIPlan struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
+// TableName keeps Gorm on the migration's ai_plans table.
+// Without it, Gorm looks for a_iplans and the create call fails.
+func (AIPlan) TableName() string {
+	return "ai_plans"
+}
+
 // AIPlanTarget is one recipient in an AI plan request.
 type AIPlanTarget struct {
 	Email      string `json:"email"`

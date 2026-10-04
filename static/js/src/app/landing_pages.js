@@ -164,7 +164,7 @@ function load() {
                 $.each(pages, function (i, page) {
                     pageRows.push([
                         escapeHtml(page.name),
-                        moment(page.modified_date).format('MMMM Do YYYY, h:mm:ss a'),
+                        formatDateTime(page.modified_date),
                         "<div class='pull-right'><span data-toggle='modal' data-backdrop='static' data-target='#modal'><button class='btn btn-primary' data-toggle='tooltip' data-placement='left' title='" + t("js.edit") + "' aria-label='" + t("js.edit") + "' onclick='edit(" + i + ")'>\
                     <i class='fa fa-pencil'></i>\
                     </button></span>\

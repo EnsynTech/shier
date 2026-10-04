@@ -134,7 +134,7 @@ func (s *ModelsSuite) TestMailLogError(ch *check.C) {
 	ch.Assert(len(campaign.Events), check.Equals, expectedEventLength)
 
 	gotEvent := campaign.Events[1]
-	es := EventError{Error: expectedError.Error()}
+	es := EventError{Error: expectedError.Error(), Reason: SendReasonMailboxRejected}
 	ej, _ := json.Marshal(es)
 	expectedEvent := Event{
 		Id:         gotEvent.Id,

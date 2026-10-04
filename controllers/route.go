@@ -127,12 +127,15 @@ func (as *AdminServer) registerRoutes() {
 	// Base Front-end routes
 	router.HandleFunc("/", mid.Use(as.Base, mid.RequireLogin))
 	router.HandleFunc("/login", mid.Use(as.Login, as.limiter.Limit))
+	router.HandleFunc("/lang/{lang:en|zh}", as.SetLanguage)
 	router.HandleFunc("/logout", mid.Use(as.Logout, mid.RequireLogin))
 	router.HandleFunc("/reset_password", mid.Use(as.ResetPassword, mid.RequireLogin))
 	router.HandleFunc("/campaigns", mid.Use(as.Campaigns, mid.RequireLogin))
 	router.HandleFunc("/campaigns/{id:[0-9]+}", mid.Use(as.CampaignID, mid.RequireLogin))
 	router.HandleFunc("/scenarios", mid.Use(as.Scenarios, mid.RequireLogin))
 	router.HandleFunc("/reports", mid.Use(as.Reports, mid.RequireLogin))
+	router.HandleFunc("/reports/brief", mid.Use(as.ReportsBrief, mid.RequireLogin))
+	router.HandleFunc("/reports/compare", mid.Use(as.ReportsCompare, mid.RequireLogin))
 	router.HandleFunc("/templates", mid.Use(as.Templates, mid.RequireLogin))
 	router.HandleFunc("/groups", mid.Use(as.Groups, mid.RequireLogin))
 	router.HandleFunc("/landing_pages", mid.Use(as.LandingPages, mid.RequireLogin))
@@ -178,14 +181,15 @@ func (as *AdminServer) registerRoutes() {
 }
 
 type templateParams struct {
-	Title             string
-	Flashes           []interface{}
-	User              models.User
-	Token             string
-	Version           string
-	ModifySystem      bool
-	Lang              string
-	TranslationsJSON  template.JS
+	Title            string
+	Flashes          []interface{}
+	User             models.User
+	Token            string
+	Version          string
+	ModifySystem     bool
+	Lang             string
+	TranslationsJSON template.JS
+	Path             string
 }
 
 // newTemplateParams returns the default template parameters for a user and
@@ -203,7 +207,31 @@ func newTemplateParams(r *http.Request) templateParams {
 		Flashes:          session.Flashes(),
 		Lang:             lang,
 		TranslationsJSON: translationsJS(lang),
+		Path:             r.URL.RequestURI(),
 	}
+}
+
+// SetLanguage stores the 中/EN choice and returns to the page that requested it.
+func (as *AdminServer) SetLanguage(w http.ResponseWriter, r *http.Request) {
+	lang := mux.Vars(r)["lang"]
+	if lang != i18n.LangEN && lang != i18n.LangZH {
+		http.NotFound(w, r)
+		return
+	}
+	i18n.SetLangCookie(w, lang, as.config.UseTLS)
+	http.Redirect(w, r, safeLocalPath(r.URL.Query().Get("next")), http.StatusSeeOther)
+}
+
+// safeLocalPath keeps language-switch redirects on this site.
+func safeLocalPath(next string) string {
+	if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.Contains(next, "\\") {
+		return "/"
+	}
+	u, err := url.Parse(next)
+	if err != nil || u.Scheme != "" || u.Host != "" {
+		return "/"
+	}
+	return next
 }
 
 func translationsJS(lang string) template.JS {
@@ -247,6 +275,20 @@ func (as *AdminServer) Reports(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
 	params.Title = i18n.T(params.Lang, "title.reports")
 	getTemplate(w, "reports", params.Lang).ExecuteTemplate(w, "base", params)
+}
+
+// ReportsBrief renders the printable leadership brief.
+func (as *AdminServer) ReportsBrief(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = i18n.T(params.Lang, "title.reports_brief")
+	getTemplate(w, "reports_brief", params.Lang).ExecuteTemplate(w, "base", params)
+}
+
+// ReportsCompare renders the scenario comparison page.
+func (as *AdminServer) ReportsCompare(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = i18n.T(params.Lang, "title.reports_compare")
+	getTemplate(w, "reports_compare", params.Lang).ExecuteTemplate(w, "base", params)
 }
 
 // Templates handles the default path and template execution
@@ -357,7 +399,8 @@ func (as *AdminServer) handleInvalidLogin(w http.ResponseWriter, r *http.Request
 		Token            string
 		Lang             string
 		TranslationsJSON template.JS
-	}{Title: i18n.T(lang, "title.login"), Token: csrf.Token(r), Lang: lang, TranslationsJSON: translationsJS(lang)}
+		Path             string
+	}{Title: i18n.T(lang, "title.login"), Token: csrf.Token(r), Lang: lang, TranslationsJSON: translationsJS(lang), Path: r.URL.RequestURI()}
 	params.Flashes = session.Flashes()
 	session.Save(r, w)
 	templates := template.New("template").Funcs(i18n.FuncMap(lang))
@@ -405,7 +448,8 @@ func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
 		Token            string
 		Lang             string
 		TranslationsJSON template.JS
-	}{Title: i18n.T(lang, "title.login"), Token: csrf.Token(r), Lang: lang, TranslationsJSON: translationsJS(lang)}
+		Path             string
+	}{Title: i18n.T(lang, "title.login"), Token: csrf.Token(r), Lang: lang, TranslationsJSON: translationsJS(lang), Path: r.URL.RequestURI()}
 	session := ctx.Get(r, "session").(*sessions.Session)
 	switch {
 	case r.Method == "GET":

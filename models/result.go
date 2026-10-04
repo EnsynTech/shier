@@ -84,8 +84,8 @@ func (r *Result) HandleMessageSent(channel string) error {
 
 // HandleEmailError updates a Result to indicate that there was an error when
 // attempting to send the email to the remote SMTP server.
-func (r *Result) HandleEmailError(err error) error {
-	event, err := r.createEvent(EventSendingError, EventError{Error: err.Error()})
+func (r *Result) HandleEmailError(sendErr error) error {
+	event, err := r.createEvent(EventSendingError, NewSendEventError(sendErr))
 	if err != nil {
 		return err
 	}
@@ -96,8 +96,8 @@ func (r *Result) HandleEmailError(err error) error {
 
 // HandleEmailBackoff updates a Result to indicate that the email received a
 // temporary error and needs to be retried
-func (r *Result) HandleEmailBackoff(err error, sendDate time.Time) error {
-	event, err := r.createEvent(EventSendingError, EventError{Error: err.Error()})
+func (r *Result) HandleEmailBackoff(sendErr error, sendDate time.Time) error {
+	event, err := r.createEvent(EventSendingError, NewSendEventError(sendErr))
 	if err != nil {
 		return err
 	}

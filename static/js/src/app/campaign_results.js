@@ -5,6 +5,26 @@ function resultCountsAsClicked(status) {
     return status === "Clicked Link" || status === "Submitted Data"
 }
 
+function resultCountsAsDelivered(status) {
+    return status === "Email Sent" || status === "Email Opened" || status === "Clicked Link" || status === "Submitted Data"
+}
+
+function personName(result) {
+    var last = (result.last_name || "").trim()
+    var first = (result.first_name || "").trim()
+    if (window.GophishLang === "zh") {
+        return (last + first).trim()
+    }
+    return (first + " " + last).trim()
+}
+
+function formatPct(num, den) {
+    if (!den) {
+        return "0%"
+    }
+    return (Math.round((num / den) * 1000) / 10) + "%"
+}
+
 function techniqueDisplay(tech) {
     var key = "scenario_library.technique_" + tech
     var label = t(key)
@@ -21,6 +41,7 @@ function renderCampaignTagBadges(c) {
         badges += " <span class='label label-warning'>" + escapeHtml(t("results.difficulty")) +
             " " + escapeHtml(String(c.difficulty)) + "</span>"
     }
+    badges += " <span class='label label-success'>" + escapeHtml(sendingTrustLabel(c.sending_trust)) + "</span>"
     $.each(c.techniques || [], function (i, tech) {
         badges += " <span class='label label-info'>" + escapeHtml(techniqueDisplay(tech)) + "</span>"
     })
@@ -39,23 +60,75 @@ function renderDepartmentBreakdown(results) {
     $.each(results, function (i, result) {
         var dept = (result.department || "").trim() || t("results.department_empty")
         if (!buckets[dept]) {
-            buckets[dept] = { total: 0, clicked: 0 }
+            buckets[dept] = { delivered: 0, clicked: 0, submitted: 0, reported: 0 }
         }
-        buckets[dept].total++
+        if (!resultCountsAsDelivered(result.status)) {
+            return
+        }
+        buckets[dept].delivered++
         if (resultCountsAsClicked(result.status)) {
             buckets[dept].clicked++
         }
+        if (result.status === "Submitted Data") {
+            buckets[dept].submitted++
+        }
+        if (result.reported) {
+            buckets[dept].reported++
+        }
     })
-    var rows = Object.keys(buckets).sort().map(function (dept) {
+    var rows = Object.keys(buckets).map(function (dept) {
         var b = buckets[dept]
-        var rate = b.total ? ((b.clicked / b.total) * 100).toFixed(1) + "%" : "0%"
-        return "<tr><td>" + escapeHtml(dept) + "</td><td>" + b.total + "</td><td>" +
-            b.clicked + "</td><td>" + rate + "</td></tr>"
+        b.department = dept
+        b.sample_small = b.delivered < 5
+        b.click_rate = b.delivered ? b.clicked / b.delivered : 0
+        return b
+    }).sort(function (a, b) {
+        if (a.sample_small !== b.sample_small) {
+            return a.sample_small ? 1 : -1
+        }
+        if (a.click_rate !== b.click_rate) {
+            return b.click_rate - a.click_rate
+        }
+        return a.department.localeCompare(b.department)
+    })
+    var html = rows.map(function (b) {
+        var rate = b.delivered ? formatPct(b.clicked, b.delivered) : "—"
+        return "<tr><td>" + escapeHtml(b.department) + "</td><td>" + b.delivered + "</td><td>" +
+            b.clicked + "</td><td>" + b.submitted + "</td><td>" + b.reported + "</td><td>" +
+            rate + "</td><td>" + (b.sample_small ? escapeHtml(t("results.sample_small")) : "") + "</td></tr>"
     }).join("")
-    if (!rows) {
-        rows = "<tr><td colspan='4' class='text-muted'>" + escapeHtml(t("results.department_empty_table")) + "</td></tr>"
+    if (!html) {
+        html = "<tr><td colspan='7' class='text-muted'>" + escapeHtml(t("results.department_empty_table")) + "</td></tr>"
     }
-    host.html(rows)
+    host.html(html)
+}
+
+function renderHighRisk(results) {
+    var host = $("#highRiskTable tbody")
+    if (!host.length) {
+        return
+    }
+    var people = (results || []).filter(function (result) {
+        return resultCountsAsClicked(result.status)
+    }).sort(function (a, b) {
+        var aSubmit = a.status === "Submitted Data" ? 0 : 1
+        var bSubmit = b.status === "Submitted Data" ? 0 : 1
+        if (aSubmit !== bSubmit) {
+            return aSubmit - bSubmit
+        }
+        return (a.email || "").localeCompare(b.email || "")
+    })
+    if (!people.length) {
+        host.html("<tr><td colspan='5' class='text-muted'>" + escapeHtml(t("results.high_risk_empty")) + "</td></tr>")
+        return
+    }
+    host.html(people.map(function (result) {
+        return "<tr><td>" + escapeHtml(personName(result)) + "</td><td>" +
+            escapeHtml(result.email || "") + "</td><td>" +
+            escapeHtml((result.department || "").trim() || t("results.department_empty")) + "</td><td>" +
+            escapeHtml(statusLabel(result.status)) + "</td><td>" +
+            escapeHtml(result.reported ? t("common.yes") : t("common.no")) + "</td></tr>"
+    }).join(""))
 }
 
 // statuses is a helper map to point result statuses to ui classes
@@ -206,6 +279,7 @@ var progressListing = [
 ]
 
 var campaign = {}
+var latestTimelineData = []
 var bubbles = []
 
 function dismiss() {
@@ -278,12 +352,12 @@ function completeCampaign() {
     }).then(function (result) {
         if (result.value){
             Swal.fire(
-                'Campaign Completed!',
-                'This campaign has been completed!',
+                t("js.campaign_completed_title"),
+                t("js.campaign_completed_text"),
                 'success'
             );
             $('#complete_button')[0].disabled = true;
-            $('#complete_button').text('Completed!')
+            $('#complete_button').html('<i class="fa fa-flag-checkered"></i> ' + t("js.status_completed"))
             doPoll = false;
         }
     })
@@ -296,7 +370,18 @@ function exportAsCSV(scope) {
     var filename = campaign.name + ' - ' + capitalize(scope) + '.csv'
     switch (scope) {
         case "results":
-            csvScope = campaign.results
+            csvScope = (campaign.results || []).map(function (result) {
+                var row = {}
+                row[t("results.csv_name")] = personName(result)
+                row[t("common.email")] = result.email || ""
+                row[t("common.department")] = result.department || ""
+                row[t("common.position")] = result.position || ""
+                row[t("results.csv_status")] = statusLabel(result.status)
+                row[t("results.csv_reported")] = result.reported ? t("common.yes") : t("common.no")
+                row[t("results.csv_replied")] = result.replied ? t("common.yes") : t("common.no")
+                row[t("results.csv_sent_at")] = formatDateTime(result.send_date)
+                return row
+            })
             break;
         case "events":
             csvScope = campaign.timeline
@@ -481,7 +566,7 @@ function renderTimeline(data) {
                 '    <div class="timeline-icon ' + eventStyle.label + '">' +
                 '    <i class="fa ' + eventStyle.icon + '"></i></div>' +
                 '    <div class="timeline-message">' + escapeHtml(event.message) +
-                '    <span class="timeline-date">' + moment.utc(event.time).local().format('MMMM Do YYYY h:mm:ss a') + '</span>'
+                '    <span class="timeline-date">' + formatDateTime(moment.utc(event.time).local()) + '</span>'
             if (event.details) {
                 details = JSON.parse(event.details)
                 if (event.message == "Clicked Link" || event.message == "Submitted Data") {
@@ -512,10 +597,12 @@ function renderTimeline(data) {
                     results += '</div>'
                 }
                 if (details.error) {
-                    results += '<div class="timeline-event-details"><i class="fa fa-caret-right"></i> View Details</div>'
-                    results += '<div class="timeline-event-results">'
-                    results += '<span class="label label-default">Error</span> ' + details.error
-                    results += '</div>'
+                    var reasonLabel = sendErrorLabel(details.reason)
+                    if (reasonLabel) {
+                        results += '<div>' + escapeHtml(reasonLabel) + '</div>'
+                    }
+                    results += '<div class="timeline-event-details"><i class="fa fa-caret-right"></i> ' + escapeHtml(t("results.view_raw_error")) + '</div>'
+                    results += '<div class="timeline-event-results">' + escapeHtml(details.error) + '</div>'
                 }
                 if (event.message == "Email Reported") {
                     var reportLines = []
@@ -554,7 +641,7 @@ function renderTimeline(data) {
         results +=
             '    <div class="timeline-icon ' + scheduleStyle.label + '">' +
             '    <i class="fa ' + scheduleStyle.icon + '"></i></div>' +
-            '    <div class="timeline-message">' + "Scheduled to send at " + record.send_date + '</span>'
+            '    <div class="timeline-message">' + t("js.scheduled_to_send") + record.send_date + '</span>'
     }
     results += '</div></div>'
     return results
@@ -572,7 +659,14 @@ var renderTimelineChart = function (chartopts) {
         },
         xAxis: {
             type: 'datetime',
-            dateTimeLabelFormats: {
+            dateTimeLabelFormats: window.GophishLang === "zh" ? {
+                second: '%H:%M:%S',
+                minute: '%H:%M',
+                hour: '%H:%M',
+                day: '%Y年%m月%d日',
+                week: '%Y年%m月%d日',
+                month: '%Y年%m月'
+            } : {
                 second: '%l:%M:%S',
                 minute: '%l:%M',
                 hour: '%l:%M',
@@ -710,6 +804,50 @@ function buildEmailSeriesData(results) {
     return email_series_data
 }
 
+function renderSendErrorSummary(results, events) {
+    var failed = {}
+    $.each(results || [], function (_, result) {
+        if (result.status === "Error" && result.email) {
+            failed[result.email] = "unknown"
+        }
+    })
+    var ordered = (events || []).slice().sort(function (a, b) {
+        return new Date(a.time) - new Date(b.time)
+    })
+    $.each(ordered, function (_, event) {
+        if (event.message !== "Error Sending Email" || !Object.prototype.hasOwnProperty.call(failed, event.email)) {
+            return
+        }
+        var details = {}
+        try {
+            details = JSON.parse(event.details || "{}")
+        } catch (e) {
+            return
+        }
+        if (details.reason) {
+            failed[event.email] = details.reason
+        }
+    })
+    var counts = {}
+    $.each(failed, function (_, reason) {
+        counts[reason] = (counts[reason] || 0) + 1
+    })
+    var reasonOrder = [
+        "auth_failed", "tls_cert", "dns", "connect", "rate_limited",
+        "mailbox_rejected", "policy_rejected", "gateway_status",
+        "invalid_request", "max_attempts", "unknown"
+    ]
+    var parts = []
+    $.each(reasonOrder, function (_, reason) {
+        if (!counts[reason]) {
+            return
+        }
+        var label = sendErrorLabel(reason) || reason
+        parts.push(escapeHtml(t("results.send_error_count").replace("{n}", counts[reason])) + " " + escapeHtml(label))
+    })
+    return parts.join(escapeHtml(t("results.send_error_join")))
+}
+
 function renderConversionVisuals(results) {
     var total = (results || []).length || 1
     var series = buildEmailSeriesData(results)
@@ -719,25 +857,63 @@ function renderConversionVisuals(results) {
         { key: "Clicked Link", label: t("results.clicked"), color: "#F39C12", width: 72 },
         { key: "Submitted Data", label: t("results.submitted"), color: "#f05b4f", width: 56 }
     ]
+    var sentBase = series["Email Sent"] || 0
     var html = ""
     $.each(steps, function (i, step) {
         var count = series[step.key] || 0
-        var rate = Math.round((count / total) * 1000) / 10
-        html += "<div class='shier-funnel-step' style='width:" + step.width + "%;background:" + step.color + ";'>" +
+        var rate = sentBase ? Math.round((count / sentBase) * 1000) / 10 : 0
+        var width = sentBase ? (count / sentBase) * 100 : 0
+        if (count > 0 && width < 16) {
+            width = 16
+        }
+        html += "<div class='shier-funnel-step' style='width:" + width + "%;background:" + step.color + ";'>" +
             "<span>" + escapeHtml(step.label) + " · " + count + "</span>" +
             "<span class='pct'>" + rate + "%</span></div>"
     })
     $("#resultsFunnel").html(html)
 
     var sent = series["Email Sent"] || 0
+    var opened = series["Email Opened"] || 0
     var clicked = series["Clicked Link"] || 0
     var submitted = series["Submitted Data"] || 0
     var reported = series["Email Reported"] || 0
+    var replied = series["Email Replied"] || 0
+    var errors = 0
+    var retrying = 0
+    $.each(results || [], function (i, result) {
+        if (result.status === "Error") {
+            errors++
+        }
+        if (result.status === "Retrying") {
+            retrying++
+        }
+    })
+    var finished = sent + errors
+    if (finished > 0) {
+        $("#verdictSendRate").text(formatPct(sent, finished))
+    } else {
+        $("#verdictSendRate").text("—")
+    }
+    var notes = []
+    if (retrying > 0) {
+        notes.push(escapeHtml(t("results.retrying_note").replace("{n}", retrying)))
+    }
+    var reasonSummary = renderSendErrorSummary(results, (campaign && campaign.timeline) || [])
+    if (reasonSummary) {
+        notes.push(reasonSummary)
+    }
+    $("#verdictSendNotes").html(notes.join("<br>"))
     var prone = sent ? Math.round((clicked / sent) * 1000) / 10 : 0
     $("#verdictPhishProne").text(prone + "%")
+    $("#verdictSubmitRate").text(formatPct(submitted, sent))
+    $("#verdictReportRate").text(formatPct(reported, sent))
+    $("#verdictSent").text(sent)
+    $("#verdictOpened").text(opened)
     $("#verdictClicked").text(clicked)
     $("#verdictSubmitted").text(submitted)
     $("#verdictReported").text(reported)
+    $("#verdictReplied").text(replied)
+    $("#verdictErrors").text(errors)
     if (prone >= 25) {
         $("#verdictText").text(t("dashboard.verdict_attention"))
     } else if (prone > 0) {
@@ -811,11 +987,12 @@ var updateMap = function (results) {
  */
 function createStatusLabel(status, send_date) {
     var label = timelineStatus(status).label || "label-default";
-    var statusColumn = "<span class=\"label " + label + "\">" + status + "</span>"
+    var text = escapeHtml(statusLabel(status))
+    var statusColumn = "<span class=\"label " + label + "\">" + text + "</span>"
     // Add the tooltip if the email is scheduled to be sent
     if (status == "Scheduled" || status == "Retrying") {
-        var sendDateMessage = "Scheduled to send at " + send_date
-        statusColumn = "<span class=\"label " + label + "\" data-toggle=\"tooltip\" data-placement=\"top\" data-html=\"true\" title=\"" + sendDateMessage + "\">" + status + "</span>"
+        var sendDateMessage = escapeHtml(t("js.scheduled_to_send") + send_date)
+        statusColumn = "<span class=\"label " + label + "\" data-toggle=\"tooltip\" data-placement=\"top\" data-html=\"true\" title=\"" + sendDateMessage + "\">" + text + "</span>"
     }
     return statusColumn
 }
@@ -846,14 +1023,18 @@ function poll() {
                     }
                 })
             })
+            latestTimelineData = timeline_series_data
             var timeline_chart = $("#timeline_chart").highcharts()
-            timeline_chart.series[0].update({
-                data: timeline_series_data
-            })
+            if (timeline_chart) {
+                timeline_chart.series[0].update({
+                    data: timeline_series_data
+                })
+            }
             /* Update the results donut chart */
             var email_series_data = buildEmailSeriesData(campaign.results)
             renderConversionVisuals(campaign.results)
             renderDepartmentBreakdown(campaign.results || [])
+            renderHighRisk(campaign.results || [])
             // Keep legacy chart ids in sync if Highcharts instances exist
             $.each(email_series_data, function (status, count) {
                 if (!(status in statusMapping)) {
@@ -884,7 +1065,7 @@ function poll() {
                 var rid = rowData[0]
                 $.each(campaign.results, function (j, result) {
                     if (result.id == rid) {
-                        rowData[10] = moment(result.send_date).format('MMMM Do YYYY, h:mm:ss a')
+                        rowData[10] = formatDateTime(result.send_date)
                         rowData[9] = result.replied
                         rowData[8] = result.reported
                         rowData[7] = result.status
@@ -921,7 +1102,7 @@ function load() {
                 $("#page-title").text(t("js.results_for") + " " + c.name)
                 if (c.status == "Completed") {
                     $('#complete_button')[0].disabled = true;
-                    $('#complete_button').text('Completed!');
+                    $('#complete_button').html('<i class="fa fa-flag-checkered"></i> ' + t("js.status_completed"));
                     doPoll = false;
                 }
                 // Setup viewing the details of a result
@@ -1004,12 +1185,13 @@ function load() {
                         result.status,
                         result.reported,
                         result.replied,
-                        moment(result.send_date).format('MMMM Do YYYY, h:mm:ss a')
+                        formatDateTime(result.send_date)
                     ])
                 })
                 resultsTable.draw();
                 renderCampaignTagBadges(campaign)
                 renderDepartmentBreakdown(campaign.results || [])
+                renderHighRisk(campaign.results || [])
                 renderConversionVisuals(campaign.results || [])
                 // Setup tooltips
                 $('[data-toggle="tooltip"]').tooltip()
@@ -1047,8 +1229,25 @@ function load() {
                         }
                     })
                 })
-                renderTimelineChart({
-                    data: timeline_series_data
+                latestTimelineData = timeline_series_data
+                $("#resultsDetails").hide()
+                $("#toggleResultsDetails").off("click").on("click", function () {
+                    var $details = $("#resultsDetails")
+                    if ($details.is(":visible")) {
+                        $details.hide()
+                        $(this).text(t("results.details_toggle"))
+                        return
+                    }
+                    $details.show()
+                    $(this).text(t("results.details_hide"))
+                    if (!$("#timeline_chart").highcharts()) {
+                        renderTimelineChart({ data: latestTimelineData })
+                    } else {
+                        $("#timeline_chart").highcharts().reflow()
+                    }
+                    if (resultsTable) {
+                        resultsTable.columns.adjust()
+                    }
                 })
 
                 $("#resultsMapContainer").hide()
