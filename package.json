@@ -1,6 +1,6 @@
 {
   "name": "shier",
-  "version": "0.12.1-shier",
+  "version": "0.13.0-shier",
   "description": "识饵（Shier）：基于 Gophish（https://github.com/gophish/gophish）改造的钓鱼演练与安全意识平台。Not the official Gophish project.",
   "author": "Shier contributors (based on Gophish by Jordan Wright)",
   "license": "MIT",
