@@ -84,6 +84,10 @@
 
 定制开发在 `shier` 分支进行。官方 Gophish 远程通常命名为 `upstream`，用于拉取上游更新。请勿将本分支的定制提交直接推送到官方上游仓库。
 
+## 免费使用与商业服务
+
+识饵开源，可自行部署使用（见 `LICENSE`）。维护方为 [恩新智能](https://ensyntech.com/)，联系 ensyntech@outlook.com。若需要项目制钓鱼演练、意识培训配合，或渗透 / 咨询 / 定制开发，请通过官网或邮箱联系，按合同交付，而不是把本仓库当作付费软件授权。
+
 ## 许可
 
 上游 Gophish Community Edition 使用 MIT License，版权为 Copyright (c) 2013-2020 Jordan Wright。完整许可文本在仓库根目录 [`LICENSE`](./LICENSE)。本分支新增与修改的部分，在适用范围内继续按 MIT 条款使用与分发。
